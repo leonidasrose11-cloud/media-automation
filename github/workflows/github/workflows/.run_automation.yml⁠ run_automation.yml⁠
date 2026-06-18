@@ -30,13 +30,19 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install google-generativeai edge-tts requests google-api-python-client google-auth-oauthlib google-auth-httplib2
-    - name: Execute Automation Script
+      # 🎯 We add the github.workspace path to point directly to your files
+      run: python ${{ github.workspace }}/main.py     - name: Execute Automation Script
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      # 🎯 We add the github.workspace path to point directly to your files
-      run: python ${{ github.workspace }}/main.py
+      # 🎯 This command forces Linux to print out every single file it sees in your repo
+      run: |
+        echo "=== Current Folder Contents ==="
+        ls -la
+        echo "==============================="
+        python ${{ github.workspace }}/main.py
+
 
