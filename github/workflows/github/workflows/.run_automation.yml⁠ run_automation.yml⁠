@@ -1,11 +1,11 @@
 name: Apex Wealth Lab Autopilot Engine
 
 on:
-  # ⏰ This automatically runs the script every single day at 12:00 PM UTC
+  # ⏰ This automatically runs the script THREE times a day (7 AM, 2 PM, and 9 PM Algerian Time)
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 6,13,20 * * *'
   
-  # 🚀 This gives you a manual "Run Workflow" button inside GitHub so you can test it right now!
+  # 🚀 This keeps your manual "Run Workflow" button active so you can test it whenever you want!
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
     - name: Set up Python Environment
       uses: actions/setup-python@v5
       with:
-        python-python: '3.10'
+        python-version: '3.10'
 
     - name: Install FFmpeg Multimedia Engine
       run: |
@@ -33,10 +33,9 @@ jobs:
 
     - name: Execute Automation Script
       env:
-        # This securely injects the vault secrets we spent today setting up
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      run: main.py
+      run: python main.py
