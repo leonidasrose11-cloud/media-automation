@@ -1,20 +1,20 @@
 name: Apex Wealth Lab Autopilot Engine
 
 on:
-  # ⏰ This automatically runs the script THREE times a day (7 AM, 2 PM, and 9 PM Algerian Time)
   schedule:
     - cron: '0 6,13,20 * * *'
-  
-  # 🚀 This keeps your manual "Run Workflow" button active so you can test it whenever you want!
   workflow_dispatch:
 
 jobs:
-  run-pipeline:
+  build-and-run:
     runs-on: ubuntu-latest
 
     steps:
+    # 1. 🎯 This forces a deep, clean clone of your files straight into the workspace root
     - name: Checkout Repository Code
       uses: actions/checkout@v4
+      with:
+        clean: true
 
     - name: Set up Python Environment
       uses: actions/setup-python@v5
@@ -30,19 +30,19 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install google-generativeai edge-tts requests google-api-python-client google-auth-oauthlib google-auth-httplib2
-      # 🎯 We add the github.workspace path to point directly to your files
-      run: python ${{ github.workspace }}/main.py     - name: Execute Automation Script
+
+    # 2. 🔍 This version WILL run the list command so we can see what's happening if it fails
+    - name: Run Automation Engine
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      # 🎯 This command forces Linux to print out every single file it sees in your repo
       run: |
-        echo "=== Current Folder Contents ==="
+        echo "=== Checking Workspace Path ==="
+        pwd
+        echo "=== Listing Root Files ==="
         ls -la
-        echo "==============================="
-        python ${{ github.workspace }}/main.py
-
-
+        echo "=========================="
+        python main.py
