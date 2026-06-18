@@ -11,7 +11,7 @@ import edge_tts
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
-# [1/5] GEMINI SCRIPT GENERATION
+# [1/5] GEMINI SCRIPT GENERATION WITH ADVANCED RETENTION HOOKS
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
     model = genai.GenerativeModel('gemini-1.5-pro')
@@ -23,12 +23,17 @@ def generate_script_from_gemini():
     TARGET AUDIENCE: High-value viewers in the US and Canada looking for deep financial intelligence.
     CRITICAL REQUIREMENT: The script MUST be extraordinarily comprehensive, spanning roughly 2,200 to 2,500 words to ensure a 16-minute spoken duration.
     
+    RETENTION STRATEGIES TO ENFORCE:
+    - Open Loops: Drop subtle teases early on about a framework you will reveal at the very end of the video.
+    - Pattern Interrupts: Vary sentence lengths drastically. Use punchy, shocking micro-statements followed by data breakdowns.
+    - Seamless Short Transition: Ensure the absolute final sentence of the script creates an open loop that flows logically back into the video's title hook if it were replayed.
+    
     Structure the script with the following elements, but DO NOT include stage directions, speaker labels, or sound effect cues. Output ONLY the words to be spoken:
-    1. Hook & Introduction (First 60 seconds)
+    1. Hook & Introduction (First 60 seconds - immediately state the tension)
     2. The Core Problem/Thesis
     3. Deep-Dive Analysis & Case Studies
     4. Actionable Execution Framework
-    5. Outro & Retention Bridge
+    5. Outro & Retention Bridge (Prompting session watch time)
     """
     try:
         response = model.generate_content(prompt)
@@ -65,7 +70,7 @@ def fetch_stock_footage():
     headers = {"Authorization": PEXELS_API_KEY}
     video_urls = []
     
-    for word in random.sample(keywords, 4):
+    for word in random.sample(keywords, 5):
         url = f"https://api.pexels.com/videos/search?query={word}&per_page=3&orientation=landscape"
         try:
             response = requests.get(url, headers=headers).json()
@@ -79,7 +84,7 @@ def fetch_stock_footage():
 
     os.makedirs("raw_clips", exist_ok=True)
     with open("clip_list.txt", "w") as f:
-        for i, link in enumerate(video_urls[:10]):
+        for i, link in enumerate(video_urls[:12]):
             print(f"Downloading background clip {i+1}...")
             clip_path = f"raw_clips/clip_{i}.mp4"
             try:
@@ -90,20 +95,27 @@ def fetch_stock_footage():
             except Exception as e:
                 print(f"Failed to download clip {i}: {e}")
 
-# [4/5] FFMPEG VIDEO EDITING ENGINE
+# [4/5] HIGH-RETENTION FFMPEG LOOPING & RENDERING ENGINE
 def render_and_clip_video():
     print("[4/5] Executing FFmpeg processing engine...")
     if not os.path.exists("voiceover.mp3") or not os.path.exists("clip_list.txt"):
         print("Error: Missing required audio or video assets for editing.")
         sys.exit(1)
         
-    print("Stitching clips together and applying the financial voiceover...")
-    os.system("ffmpeg -y -f concat -safe 0 -i clip_list.txt -c copy background_loop.mp4")
-    os.system("ffmpeg -y -i background_loop.mp4 -i voiceover.mp3 -c:v libx264 -c:a aac -map 0:v:0 -map 1:a:0 -shortest final_longform.mp4")
+    print("Stitching individual clips into a baseline reel...")
+    os.system("ffmpeg -y -f concat -safe 0 -i clip_list.txt -c copy baseline_loop.mp4")
     
-    print("Long-form video processing complete! Creating a 35-second viral vertical Short...")
-    os.system("ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf 'crop=ih*9/16:ih:(iw-ow)/2:0,scale=1080:1920' -c:v libx264 -c:a aac final_short.mp4")
-    print("Success! Both 'final_longform.mp4' and vertical 'final_short.mp4' are fully generated.")
+    # ADVANCED FIX: We loop the baseline compilation video track over and over so it covers the 16-minute audio track perfectly!
+    print("Looping video track streams to dynamically match long-form audio duration...")
+    os.system("ffmpeg -y -stream_loop -1 -i baseline_loop.mp4 -i voiceover.mp3 -c:v libx264 -c:a aac -map 0:v:0 -map 1:a:0 -shortest final_longform.mp4")
+    
+    # HARDCODING ENGAGEMENT TEXT ONTO THE VERTICAL SHORT
+    print("Creating a 35-second viral center-cropped vertical Short with integrated title retention hooks...")
+    title_overlay = "drawtext=text='THE WEALTH TRAP':fontcolor=white:fontsize=64:box=1:boxcolor=black@0.7:boxborderw=20:x=(w-text_w)/2:y=150"
+    sub_overlay = "drawtext=text='Listen Closely 💸':fontcolor=yellow:fontsize=48:x=(w-text_w)/2:y=260"
+    
+    os.system(f"ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf 'crop=ih*9/16:ih:(iw-ow)/2:0,scale=1080:1920,{title_overlay},{sub_overlay}' -c:v libx264 -c:a aac final_short.mp4")
+    print("Success! Both 'final_longform.mp4' and hard-captioned 'final_short.mp4' are fully generated.")
 
 # [5/5] YOUTUBE UPLOADER ENGINE
 def upload_to_youtube():
@@ -113,7 +125,6 @@ def upload_to_youtube():
     from googleapiclient.http import MediaFileUpload
     from google.oauth2.credentials import Credentials
     
-    # Securely retrieve the refresh token and client credentials from GitHub Secrets
     refresh_token = os.environ.get("YOUTUBE_REFRESH_TOKEN")
     client_id = os.environ.get("YOUTUBE_CLIENT_ID")
     client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
@@ -122,7 +133,6 @@ def upload_to_youtube():
         print("Error: Missing required YouTube API credentials in environment variables.")
         sys.exit(1)
         
-    # Reconstruct the credentials object dynamically for headless cloud execution
     creds = Credentials(
         token=None,
         refresh_token=refresh_token,
@@ -141,7 +151,7 @@ def upload_to_youtube():
                 "snippet": {
                     "title": "The Hidden Financial System Exploited by the 1% (Masterclass)",
                     "description": "Discover advanced wealth creation frameworks and macroeconomic shifts.\n\n#finance #wealth #macroeconomics",
-                    "categoryId": "27" # Category 27 is Education
+                    "categoryId": "27"
                 },
                 "status": {
                     "privacyStatus": "public",
