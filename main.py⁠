@@ -1,40 +1,189 @@
 import os
 import sys
+import asyncio
+import json
+import random
+import requests
+import google.generativeai as genai
+import edge_tts
 
+# Configure APIs using secure environment variables
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
+
+# [1/5] GEMINI SCRIPT GENERATION
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
-    # Logic for scraping topics and outputting a 16-minute voice script
-    pass
+    model = genai.GenerativeModel('gemini-1.5-pro')
+    
+    prompt = """
+    You are an expert financial analyst, scriptwriter, and viral content creator for the YouTube channel 'Apex Wealth Lab'.
+    Write an incredibly detailed, high-retention YouTube video script about advanced wealth creation, macroeconomics, or hidden financial systems.
+    
+    TARGET AUDIENCE: High-value viewers in the US and Canada looking for deep financial intelligence.
+    CRITICAL REQUIREMENT: The script MUST be extraordinarily comprehensive, spanning roughly 2,200 to 2,500 words to ensure a 16-minute spoken duration.
+    
+    Structure the script with the following elements, but DO NOT include stage directions, speaker labels, or sound effect cues. Output ONLY the words to be spoken:
+    1. Hook & Introduction (First 60 seconds)
+    2. The Core Problem/Thesis
+    3. Deep-Dive Analysis & Case Studies
+    4. Actionable Execution Framework
+    5. Outro & Retention Bridge
+    """
+    try:
+        response = model.generate_content(prompt)
+        script_text = response.text
+        with open("script.txt", "w", encoding="utf-8") as f:
+            f.write(script_text)
+        print(f"Success! Generated a script of {len(script_text.split())} words.")
+        return script_text
+    except Exception as e:
+        print(f"Error generating script from Gemini: {e}")
+        sys.exit(1)
+
+# [2/5] EDGE TTS VOICEOVER GENERATION
+async def generate_voiceover_async():
+    if not os.path.exists("script.txt"):
+        print("Error: script.txt not found!")
+        sys.exit(1)
+    with open("script.txt", "r", encoding="utf-8") as f:
+        text = f.read()
+    
+    voice = "en-US-ChristopherNeural"
+    communicate = edge_tts.Communicate(text, voice)
+    await communicate.save("voiceover.mp3")
+    print("Success! voiceover.mp3 generated completely.")
 
 def generate_voiceover():
     print("[2/5] Synthesizing high-retention voiceover with Edge TTS...")
-    # Logic for transforming text to realistic speech
-    pass
+    asyncio.run(generate_voiceover_async())
 
+# [3/5] PEXELS STOCK FOOTAGE DOWNLOADER
 def fetch_stock_footage():
     print("[3/5] Scraping matching high-quality stock clips from Pexels...")
-    # Logic for parsing keywords and grabbing videos via Pexels API
-    pass
+    keywords = ["finance", "wealth", "luxury", "stock market", "gold bars", "bitcoin", "cryptocurrency", "skyscrapers", "business trading"]
+    headers = {"Authorization": PEXELS_API_KEY}
+    video_urls = []
+    
+    for word in random.sample(keywords, 4):
+        url = f"https://api.pexels.com/videos/search?query={word}&per_page=3&orientation=landscape"
+        try:
+            response = requests.get(url, headers=headers).json()
+            for video in response.get("videos", []):
+                video_files = video.get("video_files", [])
+                if video_files:
+                    hd_link = sorted(video_files, key=lambda x: x.get("width", 0), reverse=True)[0].get("link")
+                    video_urls.append(hd_link)
+        except Exception as e:
+            print(f"Error querying Pexels for keyword '{word}': {e}")
 
+    os.makedirs("raw_clips", exist_ok=True)
+    with open("clip_list.txt", "w") as f:
+        for i, link in enumerate(video_urls[:10]):
+            print(f"Downloading background clip {i+1}...")
+            clip_path = f"raw_clips/clip_{i}.mp4"
+            try:
+                video_data = requests.get(link).content
+                with open(clip_path, "wb") as file:
+                    file.write(video_data)
+                f.write(f"file '{clip_path}'\n")
+            except Exception as e:
+                print(f"Failed to download clip {i}: {e}")
+
+# [4/5] FFMPEG VIDEO EDITING ENGINE
 def render_and_clip_video():
     print("[4/5] Executing FFmpeg processing engine...")
-    # Logic for rendering the 16-minute long-form video
-    # Logic for isolating a high-potential 35-second viral vertical Short
-    pass
+    if not os.path.exists("voiceover.mp3") or not os.path.exists("clip_list.txt"):
+        print("Error: Missing required audio or video assets for editing.")
+        sys.exit(1)
+        
+    print("Stitching clips together and applying the financial voiceover...")
+    os.system("ffmpeg -y -f concat -safe 0 -i clip_list.txt -c copy background_loop.mp4")
+    os.system("ffmpeg -y -i background_loop.mp4 -i voiceover.mp3 -c:v libx264 -c:a aac -map 0:v:0 -map 1:a:0 -shortest final_longform.mp4")
+    
+    print("Long-form video processing complete! Creating a 35-second viral vertical Short...")
+    os.system("ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf 'crop=ih*9/16:ih:in_cols*0:0,scale=1080:1920' -c:v libx264 -c:a aac final_short.mp4")
+    print("Success! Both 'final_longform.mp4' and vertical 'final_short.mp4' are fully generated.")
 
-def upload_to_youtube():
+# [5/5] YOUTUBE UPLOADER PLACEHOLDER
+ddef upload_to_youtube():
     print("[5/5] Authorizing via OAuth 2.0 and uploading to YouTube...")
-    # Logic for non-interactive YouTube Data API publishing (Long-form + Short)
-    pass
+    
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaFileUpload
+    from google.oauth2.credentials import Credentials
+    
+    # Securely retrieve the refresh token and client credentials from GitHub Secrets
+    refresh_token = os.environ.get("YOUTUBE_REFRESH_TOKEN")
+    client_id = os.environ.get("YOUTUBE_CLIENT_ID")
+    client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
+    
+    if not refresh_token or not client_id or not client_secret:
+        print("Error: Missing required YouTube API credentials in environment variables.")
+        sys.exit(1)
+        
+    # Reconstruct the credentials object dynamically for headless cloud execution
+    creds = Credentials(
+        token=None,
+        refresh_token=refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_id,
+        client_secret=client_secret
+    )
+    
+    try:
+        youtube = build("youtube", "v3", credentials=creds)
+        
+        # --- UPLOAD 1: THE LONG-FORM VIDEO (16 Minutes) ---
+        if os.path.exists("final_longform.mp4"):
+            print("Uploading long-form video...")
+            longform_body = {
+                "snippet": {
+                    "title": "The Hidden Financial System Exploited by the 1% (Masterclass)",
+                    "description": "Discover advanced wealth creation frameworks and macroeconomic shifts.\n\n#finance #wealth #macroeconomics",
+                    "categoryId": "27" # Category 27 is Education
+                },
+                "status": {
+                    "privacyStatus": "public",
+                    "selfDeclaredMadeForKids": False
+                }
+            }
+            media_long = MediaFileUpload("final_longform.mp4", chunksize=-1, resumable=True)
+            request_long = youtube.videos().insert(part="snippet,status", body=longform_body, media_body=media_long)
+            response_long = request_long.execute()
+            print(f"Success! Long-form uploaded. Video ID: {response_long.get('id')}")
+            
+        # --- UPLOAD 2: THE VIRAL SHORT (35 Seconds) ---
+        if os.path.exists("final_short.mp4"):
+            print("Uploading viral vertical Short...")
+            short_body = {
+                "snippet": {
+                    "title": "The fastest way to build wealth in 2026 💸 #shorts #finance",
+                    "description": "The hidden reality of asset allocation. #finance #wealth #investment",
+                    "categoryId": "27"
+                },
+                "status": {
+                    "privacyStatus": "public",
+                    "selfDeclaredMadeForKids": False
+                }
+            }
+            media_short = MediaFileUpload("final_short.mp4", chunksize=-1, resumable=True)
+            request_short = youtube.videos().insert(part="snippet,status", body=short_body, media_body=media_short)
+            response_short = request_short.execute()
+            print(f"Success! Shorts uploaded. Video ID: {response_short.get('id')}")
+            
+    except Exception as e:
+        print(f"An error occurred during YouTube upload execution: {e}")
+        sys.exit(1)
 
+
+# THE EXECUTION MANAGER
 if __name__ == "__main__":
     print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
-    
-    # Run the full pipeline
     generate_script_from_gemini()
     generate_voiceover()
     fetch_stock_footage()
     render_and_clip_video()
     upload_to_youtube()
-    
     print("--- PIPELINE EXECUTION SUCCESSFUL ---")
+
