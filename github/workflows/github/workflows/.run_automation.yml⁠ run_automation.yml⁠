@@ -1,0 +1,42 @@
+name: Apex Wealth Lab Autopilot Engine
+
+on:
+  # ⏰ This automatically runs the script every single day at 12:00 PM UTC
+  schedule:
+    - cron: '0 12 * * *'
+  
+  # 🚀 This gives you a manual "Run Workflow" button inside GitHub so you can test it right now!
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-python: '3.10'
+
+    - name: Install FFmpeg Multimedia Engine
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
+    - name: Install Project Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install google-generativeai edge-tts requests google-api-python-client google-auth-oauthlib google-auth-httplib2
+
+    - name: Execute Automation Script
+      env:
+        # This securely injects the vault secrets we spent today setting up
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+        YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+        YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+      run: python main.py
