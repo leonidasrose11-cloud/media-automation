@@ -102,11 +102,11 @@ def render_and_clip_video():
     os.system("ffmpeg -y -i background_loop.mp4 -i voiceover.mp3 -c:v libx264 -c:a aac -map 0:v:0 -map 1:a:0 -shortest final_longform.mp4")
     
     print("Long-form video processing complete! Creating a 35-second viral vertical Short...")
-    os.system("ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf 'crop=ih*9/16:ih:in_cols*0:0,scale=1080:1920' -c:v libx264 -c:a aac final_short.mp4")
+    os.system("ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf 'crop=ih*9/16:ih:(iw-ow)/2:0,scale=1080:1920' -c:v libx264 -c:a aac final_short.mp4")
     print("Success! Both 'final_longform.mp4' and vertical 'final_short.mp4' are fully generated.")
 
-# [5/5] YOUTUBE UPLOADER PLACEHOLDER
-ddef upload_to_youtube():
+# [5/5] YOUTUBE UPLOADER ENGINE
+def upload_to_youtube():
     print("[5/5] Authorizing via OAuth 2.0 and uploading to YouTube...")
     
     from googleapiclient.discovery import build
@@ -176,7 +176,6 @@ ddef upload_to_youtube():
         print(f"An error occurred during YouTube upload execution: {e}")
         sys.exit(1)
 
-
 # THE EXECUTION MANAGER
 if __name__ == "__main__":
     print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
@@ -186,4 +185,3 @@ if __name__ == "__main__":
     render_and_clip_video()
     upload_to_youtube()
     print("--- PIPELINE EXECUTION SUCCESSFUL ---")
-
