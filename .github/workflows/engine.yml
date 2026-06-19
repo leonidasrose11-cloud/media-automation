@@ -29,11 +29,19 @@ jobs:
         pip install google-generativeai edge-tts requests google-api-python-client google-auth-oauthlib google-auth-httplib2
 
     - name: Run Engine
-      working-directory: ${{ github.workspace }}/media-automation
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      run: python main.py
+      # 🎯 This automatically hunts down main.py and switches to its folder instantly
+      run: |
+        TARGET_FILE=$(find . -name "main.py" -print -quit)
+        if [ -z "$TARGET_FILE" ]; then
+          echo "ERROR: Could not find main.py anywhere in the repository!"
+          exit 1
+        fi
+        TARGET_DIR=$(dirname "$TARGET_FILE")
+        cd "$TARGET_DIR"
+        python main.py
