@@ -28,15 +28,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install google-generativeai edge-tts requests google-api-python-client google-auth-oauthlib google-auth-httplib2
 
-    # 🎯 The absolute final fix: executing directly from the root workspace
-      - name: Run Engine
+    - name: Run Engine
+      working-directory: ${{ github.workspace }}
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      # 🎯 This forces the server to look right in the root directory where main.py sits
-      working-directory: ${{ github.workspace }}
       run: python main.py
-
