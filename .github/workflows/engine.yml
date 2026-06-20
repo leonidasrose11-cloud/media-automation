@@ -35,13 +35,13 @@ jobs:
         YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
         YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-      # 🎯 This automatically hunts down main.py and switches to its folder instantly
       run: |
-        TARGET_FILE=$(find . -name "main.py" -print -quit)
-        if [ -z "$TARGET_FILE" ]; then
-          echo "ERROR: Could not find main.py anywhere in the repository!"
-          exit 1
-        fi
-        TARGET_DIR=$(dirname "$TARGET_FILE")
-        cd "$TARGET_DIR"
+        echo "=== Correcting potential hidden spacing bugs ==="
+        # This hunts down any variation of main.py and forces it to a clean filename
+        find . -type f -name "main*.py*" -exec mv {} main.py \; 2>/dev/null || true
+        
+        echo "=== Verifying clean file list ==="
+        ls -la
+        
+        echo "=== Executing Automation Script ==="
         python main.py
