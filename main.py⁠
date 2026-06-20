@@ -14,7 +14,9 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 # [1/5] GEMINI SCRIPT GENERATION WITH ADVANCED RETENTION HOOKS
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    # Updated to the fully supported 2.5 architecture model
+    model = genai.GenerativeModel('gemini-2.5-flash')
+
     
     prompt = """
     You are an expert financial analyst, scriptwriter, and viral content creator for the YouTube channel 'Apex Wealth Lab'.
@@ -114,7 +116,9 @@ def render_and_clip_video():
     title_overlay = "drawtext=text='THE WEALTH TRAP':fontcolor=white:fontsize=64:box=1:boxcolor=black@0.7:boxborderw=20:x=(w-text_w)/2:y=150"
     sub_overlay = "drawtext=text='Listen Closely 💸':fontcolor=yellow:fontsize=48:x=(w-text_w)/2:y=260"
     
-    os.system(f"ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf 'crop=ih*9/16:ih:(iw-ow)/2:0,scale=1080:1920,{title_overlay},{sub_overlay}' -c:v libx264 -c:a aac final_short.mp4")
+    # Using clean double-quote encapsulation so Linux terminal variables read cleanly
+    os.system(f'ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf "crop=ih*9/16:ih:(iw-ow)/2:0,scale=1080:1920,{title_overlay},{sub_overlay}" -c:v libx264 -c:a aac final_short.mp4')
+
     print("Success! Both 'final_longform.mp4' and hard-captioned 'final_short.mp4' are fully generated.")
 
 # [5/5] YOUTUBE UPLOADER ENGINE
