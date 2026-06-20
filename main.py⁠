@@ -14,9 +14,7 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 # [1/5] GEMINI SCRIPT GENERATION WITH ADVANCED RETENTION HOOKS
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
-    # Updated to the fully supported 2.5 architecture model
     model = genai.GenerativeModel('gemini-2.5-flash')
-
     
     prompt = """
     You are an expert financial analyst, scriptwriter, and viral content creator for the YouTube channel 'Apex Wealth Lab'.
@@ -65,28 +63,30 @@ def generate_voiceover():
     print("[2/5] Synthesizing high-retention voiceover with Edge TTS...")
     asyncio.run(generate_voiceover_async())
 
-# [3/5] PEXELS STOCK FOOTAGE DOWNLOADER
+# [3/5] PEXELS STOCK FOOTAGE DOWNLOADER (OPTIMIZED FOR SPEED)
 def fetch_stock_footage():
     print("[3/5] Scraping matching high-quality stock clips from Pexels...")
-    keywords = ["finance", "wealth", "luxury", "stock market", "gold bars", "bitcoin", "cryptocurrency", "skyscrapers", "business trading"]
+    keywords = ["finance", "wealth", "luxury", "stock market", "gold bars", "bitcoin", "skyscrapers"]
     headers = {"Authorization": PEXELS_API_KEY}
     video_urls = []
     
-    for word in random.sample(keywords, 5):
+    for word in random.sample(keywords, 4):
         url = f"https://api.pexels.com/videos/search?query={word}&per_page=3&orientation=landscape"
         try:
             response = requests.get(url, headers=headers).json()
             for video in response.get("videos", []):
                 video_files = video.get("video_files", [])
                 if video_files:
-                    hd_link = sorted(video_files, key=lambda x: x.get("width", 0), reverse=True)[0].get("link")
-                    video_urls.append(hd_link)
+                    # Select 1080p files instead of over-spec ultra HD files to maximize CPU rendering speeds
+                    optimal_files = [f for f in video_files if f.get("width", 0) <= 1920]
+                    file_to_use = optimal_files[0] if optimal_files else video_files[0]
+                    video_urls.append(file_to_use.get("link"))
         except Exception as e:
             print(f"Error querying Pexels for keyword '{word}': {e}")
 
     os.makedirs("raw_clips", exist_ok=True)
     with open("clip_list.txt", "w") as f:
-        for i, link in enumerate(video_urls[:12]):
+        for i, link in enumerate(video_urls[:10]):
             print(f"Downloading background clip {i+1}...")
             clip_path = f"raw_clips/clip_{i}.mp4"
             try:
@@ -97,7 +97,7 @@ def fetch_stock_footage():
             except Exception as e:
                 print(f"Failed to download clip {i}: {e}")
 
-# [4/5] HIGH-RETENTION FFMPEG LOOPING & RENDERING ENGINE
+# [4/5] HIGH-RETENTION FFMPEG LOOPING & RENDERING ENGINE (ULTRAFAST CONFIGURATION)
 def render_and_clip_video():
     print("[4/5] Executing FFmpeg processing engine...")
     if not os.path.exists("voiceover.mp3") or not os.path.exists("clip_list.txt"):
@@ -107,18 +107,15 @@ def render_and_clip_video():
     print("Stitching individual clips into a baseline reel...")
     os.system("ffmpeg -y -f concat -safe 0 -i clip_list.txt -c copy baseline_loop.mp4")
     
-    # ADVANCED FIX: We loop the baseline compilation video track over and over so it covers the 16-minute audio track perfectly!
-    print("Looping video track streams to dynamically match long-form audio duration...")
-    os.system("ffmpeg -y -stream_loop -1 -i baseline_loop.mp4 -i voiceover.mp3 -c:v libx264 -c:a aac -map 0:v:0 -map 1:a:0 -shortest final_longform.mp4")
+    print("Looping video track streams to dynamically match long-form audio duration (Ultrafast Mode)...")
+    # Added -preset ultrafast and optimized audio encoding to speed up rendering by up to 10x
+    os.system("ffmpeg -y -stream_loop -1 -i baseline_loop.mp4 -i voiceover.mp3 -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -map 0:v:0 -map 1:a:0 -shortest final_longform.mp4")
     
-    # HARDCODING ENGAGEMENT TEXT ONTO THE VERTICAL SHORT
     print("Creating a 35-second viral center-cropped vertical Short with integrated title retention hooks...")
     title_overlay = "drawtext=text='THE WEALTH TRAP':fontcolor=white:fontsize=64:box=1:boxcolor=black@0.7:boxborderw=20:x=(w-text_w)/2:y=150"
     sub_overlay = "drawtext=text='Listen Closely 💸':fontcolor=yellow:fontsize=48:x=(w-text_w)/2:y=260"
     
-    # Using clean double-quote encapsulation so Linux terminal variables read cleanly
-    os.system(f'ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf "crop=ih*9/16:ih:(iw-ow)/2:0,scale=1080:1920,{title_overlay},{sub_overlay}" -c:v libx264 -c:a aac final_short.mp4')
-
+    os.system(f'ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf "crop=ih*9/16:ih:(iw-ow)/2:0,scale=720:1280,{title_overlay},{sub_overlay}" -c:v libx264 -preset ultrafast -crf 26 -c:a aac final_short.mp4')
     print("Success! Both 'final_longform.mp4' and hard-captioned 'final_short.mp4' are fully generated.")
 
 # [5/5] YOUTUBE UPLOADER ENGINE
@@ -148,7 +145,6 @@ def upload_to_youtube():
     try:
         youtube = build("youtube", "v3", credentials=creds)
         
-        # --- UPLOAD 1: THE LONG-FORM VIDEO (16 Minutes) ---
         if os.path.exists("final_longform.mp4"):
             print("Uploading long-form video...")
             longform_body = {
@@ -167,7 +163,6 @@ def upload_to_youtube():
             response_long = request_long.execute()
             print(f"Success! Long-form uploaded. Video ID: {response_long.get('id')}")
             
-        # --- UPLOAD 2: THE VIRAL SHORT (35 Seconds) ---
         if os.path.exists("final_short.mp4"):
             print("Uploading viral vertical Short...")
             short_body = {
