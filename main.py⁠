@@ -6,12 +6,13 @@ import random
 import requests
 import google.generativeai as genai
 import edge_tts
+from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, vfx
 
 # Configure APIs using secure environment variables
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
-# [1/5] GEMINI SCRIPT GENERATION WITH ADVANCED RETENTION HOOKS
+# [1/5] GEMINI SCRIPT GENERATION (14 MINS MAX LIMIT)
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
     model = genai.GenerativeModel('gemini-2.5-flash')
@@ -21,19 +22,16 @@ def generate_script_from_gemini():
     Write an incredibly detailed, high-retention YouTube video script about advanced wealth creation, macroeconomics, or hidden financial systems.
     
     TARGET AUDIENCE: High-value viewers in the US and Canada looking for deep financial intelligence.
-    CRITICAL REQUIREMENT: The script MUST be extraordinarily comprehensive, spanning roughly 2,200 to 2,500 words to ensure a 16-minute spoken duration.
+    
+    CRITICAL DURATION REQUIREMENT: The script MUST be between 1,600 and 1,800 words. This ensures the spoken voiceover hits a sweet spot of roughly 12 to 14 minutes max, keeping it completely safe from YouTube's unverified account limitations.
     
     RETENTION STRATEGIES TO ENFORCE:
     - Open Loops: Drop subtle teases early on about a framework you will reveal at the very end of the video.
     - Pattern Interrupts: Vary sentence lengths drastically. Use punchy, shocking micro-statements followed by data breakdowns.
     - Seamless Short Transition: Ensure the absolute final sentence of the script creates an open loop that flows logically back into the video's title hook if it were replayed.
     
-    Structure the script with the following elements, but DO NOT include stage directions, speaker labels, or sound effect cues. Output ONLY the words to be spoken:
-    1. Hook & Introduction (First 60 seconds - immediately state the tension)
-    2. The Core Problem/Thesis
-    3. Deep-Dive Analysis & Case Studies
-    4. Actionable Execution Framework
-    5. Outro & Retention Bridge (Prompting session watch time)
+    Structure the script with a powerful introduction, core thesis breakdown, actionable wealth frameworks, and a retention-driven outro. 
+    DO NOT include stage directions, bracketed instructions, or speaker labels. Output ONLY the words to be spoken.
     """
     try:
         response = model.generate_content(prompt)
@@ -60,68 +58,96 @@ async def generate_voiceover_async():
     print("Success! voiceover.mp3 generated completely.")
 
 def generate_voiceover():
-    print("[2/5] Synthesizing high-retention voiceover with Edge TTS...")
+    print("[2/5] Synthesizing voiceover with Edge TTS...")
     asyncio.run(generate_voiceover_async())
 
-# [3/5] PEXELS STOCK FOOTAGE DOWNLOADER (OPTIMIZED FOR SPEED)
-def fetch_stock_footage():
-    print("[3/5] Scraping matching high-quality stock clips from Pexels...")
-    keywords = ["finance", "wealth", "luxury", "stock market", "gold bars", "bitcoin", "skyscrapers"]
+# [3/5] LUXURY FOOTAGE SCRAPER (DARK AESTHETIC EDITS)
+def fetch_luxury_stock_footage():
+    print("[3/5] Scraping dark luxury aesthetic clips from Pexels...")
+    keywords = ["luxury lifestyle", "supercar night", "luxury watch", "yacht luxury", "mansion aesthetic", "rolls royce black"]
     headers = {"Authorization": PEXELS_API_KEY}
     video_urls = []
     
     for word in random.sample(keywords, 4):
-        url = f"https://api.pexels.com/videos/search?query={word}&per_page=3&orientation=landscape"
+        url = f"https://api.pexels.com/videos/search?query={word}&per_page=6&orientation=landscape"
         try:
             response = requests.get(url, headers=headers).json()
             for video in response.get("videos", []):
                 video_files = video.get("video_files", [])
                 if video_files:
-                    # Select 1080p files instead of over-spec ultra HD files to maximize CPU rendering speeds
                     optimal_files = [f for f in video_files if f.get("width", 0) <= 1920]
-                    file_to_use = optimal_files[0] if optimal_files else video_files[0]
-                    video_urls.append(file_to_use.get("link"))
+                    video_urls.append(optimal_files[0].get("link") if optimal_files else video_files[0].get("link"))
         except Exception as e:
-            print(f"Error querying Pexels for keyword '{word}': {e}")
+            print(f"Error querying Pexels: {e}")
 
     os.makedirs("raw_clips", exist_ok=True)
-    with open("clip_list.txt", "w") as f:
-        for i, link in enumerate(video_urls[:10]):
-            print(f"Downloading background clip {i+1}...")
-            clip_path = f"raw_clips/clip_{i}.mp4"
-            try:
-                video_data = requests.get(link).content
-                with open(clip_path, "wb") as file:
-                    file.write(video_data)
-                f.write(f"file '{clip_path}'\n")
-            except Exception as e:
-                print(f"Failed to download clip {i}: {e}")
+    downloaded_paths = []
+    
+    for i, link in enumerate(video_urls[:15]):
+        clip_path = f"raw_clips/clip_{i}.mp4"
+        try:
+            video_data = requests.get(link).content
+            with open(clip_path, "wb") as file:
+                file.write(video_data)
+            downloaded_paths.append(clip_path)
+        except Exception as e:
+            print(f"Failed to download clip {i}")
+            
+    return downloaded_paths
 
-# [4/5] HIGH-RETENTION FFMPEG LOOPING & RENDERING ENGINE (ULTRAFAST CONFIGURATION)
-def render_and_clip_video():
-    print("[4/5] Executing FFmpeg processing engine...")
-    if not os.path.exists("voiceover.mp3") or not os.path.exists("clip_list.txt"):
-        print("Error: Missing required audio or video assets for editing.")
+# [4/5] MOVIEPY DYNAMIC RENDER ENGINE (FAST-PACED EDITING)
+def render_luxury_videos():
+    print("[4/5] Initiating MoviePy Luxury Aesthetic Editor...")
+    audio_path = "voiceover.mp3"
+    
+    if not os.path.exists(audio_path):
+        print("Error: Voiceover file missing.")
+        sys.exit(1)
+
+    voiceover = AudioFileClip(audio_path)
+    total_duration = voiceover.duration
+    
+    clip_files = [f"raw_clips/{f}" for f in os.listdir("raw_clips") if f.endswith(".mp4")]
+    if not clip_files:
+        print("Error: No downloaded clips found to compile.")
         sys.exit(1)
         
-    print("Stitching individual clips into a baseline reel...")
-    os.system("ffmpeg -y -f concat -safe 0 -i clip_list.txt -c copy baseline_loop.mp4")
+    processed_subclips = []
+    current_time = 0
     
-    print("Looping video track streams to dynamically match long-form audio duration (Ultrafast Mode)...")
-    # Added -preset ultrafast and optimized audio encoding to speed up rendering by up to 10x
-    os.system("ffmpeg -y -stream_loop -1 -i baseline_loop.mp4 -i voiceover.mp3 -c:v libx264 -preset ultrafast -crf 28 -c:a aac -b:a 128k -map 0:v:0 -map 1:a:0 -shortest final_longform.mp4")
-    
-    print("Creating a 35-second viral center-cropped vertical Short with integrated title retention hooks...")
-    title_overlay = "drawtext=text='THE WEALTH TRAP':fontcolor=white:fontsize=64:box=1:boxcolor=black@0.7:boxborderw=20:x=(w-text_w)/2:y=150"
-    sub_overlay = "drawtext=text='Listen Closely 💸':fontcolor=yellow:fontsize=48:x=(w-text_w)/2:y=260"
-    
-    os.system(f'ffmpeg -y -ss 00:02:00 -t 35 -i final_longform.mp4 -vf "crop=ih*9/16:ih:(iw-ow)/2:0,scale=720:1280,{title_overlay},{sub_overlay}" -c:v libx264 -preset ultrafast -crf 26 -c:a aac final_short.mp4')
-    print("Success! Both 'final_longform.mp4' and hard-captioned 'final_short.mp4' are fully generated.")
+    print("Chopping clips into aggressive 2-second viral cuts with custom color grades...")
+    while current_time < total_duration:
+        random.shuffle(clip_files)
+        for file in clip_files:
+            if current_time >= total_duration:
+                break
+            try:
+                with VideoFileClip(file) as video:
+                    # Snag a fast 2-second bite from a random starting point
+                    start_sec = random.uniform(0, max(0, video.duration - 2.5))
+                    subclip = video.subclip(start_sec, start_sec + 2.0).resize(newsize=(1920, 1080))
+                    
+                    # Apply a moody, rich dark luxury grade
+                    subclip = subclip.fx(vfx.colorx, 0.7)  
+                    
+                    processed_subclips.append(subclip)
+                    current_time += 2.0
+            except Exception as e:
+                continue
 
-# [5/5] YOUTUBE UPLOADER ENGINE
+    print("Stitching compilation track and linking audio...")
+    full_video_track = concatenate_videoclips(processed_subclips, method="compose")
+    final_longform = full_video_track.set_audio(voiceover).set_duration(total_duration)
+    final_longform.write_videofile("final_longform.mp4", fps=30, codec="libx264", preset="ultrafast")
+    
+    print("Generating the center-cropped vertical 35-second viral Short...")
+    short_clip = final_longform.subclip(60, 95).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
+    short_clip.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
+    print("Success! Luxury-grade video assets compiled completely.")
+
+# [5/5] YOUTUBE UPLOADER ENGINE (CLEAN DESCRIPTION - NO LINKS)
 def upload_to_youtube():
     print("[5/5] Authorizing via OAuth 2.0 and uploading to YouTube...")
-    
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
     from google.oauth2.credentials import Credentials
@@ -130,10 +156,6 @@ def upload_to_youtube():
     client_id = os.environ.get("YOUTUBE_CLIENT_ID")
     client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
     
-    if not refresh_token or not client_id or not client_secret:
-        print("Error: Missing required YouTube API credentials in environment variables.")
-        sys.exit(1)
-        
     creds = Credentials(
         token=None,
         refresh_token=refresh_token,
@@ -145,12 +167,21 @@ def upload_to_youtube():
     try:
         youtube = build("youtube", "v3", credentials=creds)
         
+        # Clean, focus-driven descriptions
+        longform_description = (
+            "Discover advanced wealth creation frameworks, financial intelligence, and macroeconomic shifts.\n\n"
+            "Welcome to Apex Wealth Lab. We decode the hidden systems behind global markets.\n\n"
+            "#finance #wealth #macroeconomics #financialfreedom"
+        )
+        
+        shorts_description = "The hidden reality of asset allocation. #finance #wealth #shorts"
+        
         if os.path.exists("final_longform.mp4"):
             print("Uploading long-form video...")
             longform_body = {
                 "snippet": {
                     "title": "The Hidden Financial System Exploited by the 1% (Masterclass)",
-                    "description": "Discover advanced wealth creation frameworks and macroeconomic shifts.\n\n#finance #wealth #macroeconomics",
+                    "description": longform_description,
                     "categoryId": "27"
                 },
                 "status": {
@@ -168,7 +199,7 @@ def upload_to_youtube():
             short_body = {
                 "snippet": {
                     "title": "The fastest way to build wealth in 2026 💸 #shorts #finance",
-                    "description": "The hidden reality of asset allocation. #finance #wealth #investment",
+                    "description": shorts_description,
                     "categoryId": "27"
                 },
                 "status": {
@@ -185,12 +216,11 @@ def upload_to_youtube():
         print(f"An error occurred during YouTube upload execution: {e}")
         sys.exit(1)
 
-# THE EXECUTION MANAGER
 if __name__ == "__main__":
     print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
     generate_script_from_gemini()
     generate_voiceover()
-    fetch_stock_footage()
-    render_and_clip_video()
+    fetch_luxury_stock_footage()
+    render_luxury_videos()
     upload_to_youtube()
     print("--- PIPELINE EXECUTION SUCCESSFUL ---")
