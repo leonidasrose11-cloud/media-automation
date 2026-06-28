@@ -3,9 +3,9 @@ name: Apex Wealth Lab Autopilot Engine
 on:
   workflow_dispatch: # Keeps your manual "Run workflow" button active for testing
   schedule:
-    - cron: '0 7 * * *'  # Run 1: 08:00 AM Algeria Time (Morning Commute Slot)
-    - cron: '0 14 * * *' # Run 2: 03:00 PM Algeria Time (US Morning / Local Afternoon)
-    - cron: '0 21 * * *' # Run 3: 10:00 PM Algeria Time (Prime-Time US/Canada Scrolling)
+    - cron: '0 7 * * *'  # Run 1: 08:00 AM Algeria Time
+    - cron: '0 14 * * *' # Run 2: 03:00 PM Algeria Time
+    - cron: '0 21 * * *' # Run 3: 10:00 PM Algeria Time
 
 jobs:
   build-and-run:
@@ -23,7 +23,8 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r ${{ github.workspace }}/requirements.txt
+          if [ -d "media-automation" ]; then cd media-automation; fi
+          pip install -r requirements.txt
 
       - name: Run Engine
         env:
@@ -32,4 +33,6 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        run: python ${{ github.workspace }}/main.py
+        run: |
+          if [ -d "media-automation" ]; then cd media-automation; fi
+          python main.py
