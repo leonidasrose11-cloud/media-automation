@@ -1,7 +1,7 @@
 name: Apex Wealth Lab Autopilot Engine
 
 on:
-  workflow_dispatch: # Allows manual testing
+  workflow_dispatch: # Keeps your manual "Run workflow" button active
   schedule:
     - cron: '0 7 * * *'  # 08:00 AM Algeria Time
     - cron: '0 14 * * *' # 03:00 PM Algeria Time
@@ -20,11 +20,19 @@ jobs:
         with:
           python-version: '3.10'
 
+      # Dynamically finds your packages file and installs it, or falls back safely
+       Kakashi-mode search deployment
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install google-generativeai requests edge-tts moviepy
+          REQ_PATH=$(find . -name "requirements.txt" | head -n 1)
+          if [ -n "$REQ_PATH" ]; then
+            pip install -r "$REQ_PATH"
+          else
+            pip install google-generativeai requests edge-tts moviepy
+          fi
 
+      # Dynamically hunts down main.py across any folder level and kicks it off
       - name: Run Engine
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -32,4 +40,7 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        run: python main.py
+        run: |
+          MAIN_PATH=$(find . -name "main.py" | head -n 1)
+          echo "Found script at: $MAIN_PATH"
+          python "$MAIN_PATH"
