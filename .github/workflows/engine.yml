@@ -1,11 +1,11 @@
 name: Apex Wealth Lab Autopilot Engine
 
 on:
-  workflow_dispatch: # Keeps your manual "Run workflow" button active
+  workflow_dispatch: 
   schedule:
-    - cron: '0 7 * * *'  # 08:00 AM Algeria Time
-    - cron: '0 14 * * *' # 03:00 PM Algeria Time
-    - cron: '0 21 * * *' # 10:00 PM Algeria Time
+    - cron: '0 7 * * *'  
+    - cron: '0 14 * * *' 
+    - cron: '0 21 * * *' 
 
 jobs:
   build-and-run:
@@ -20,8 +20,6 @@ jobs:
         with:
           python-version: '3.10'
 
-      # Dynamically finds your packages file and installs it, or falls back safely
-       Kakashi-mode search deployment
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -32,7 +30,6 @@ jobs:
             pip install google-generativeai requests edge-tts moviepy
           fi
 
-      # Dynamically hunts down main.py across any folder level and kicks it off
       - name: Run Engine
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
