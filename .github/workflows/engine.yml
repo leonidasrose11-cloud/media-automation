@@ -23,24 +23,13 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install google-generativeai requests edge-tts moviepy
+          pip install -r requirements.txt
 
-      - name: Map Files and Run
+      - name: Run Engine
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        run: |
-          echo "=== WHERE ARE THE FILES? ==="
-          ls -R
-          echo "============================"
-          MAIN_PATH=$(find . -name "main.py" | head -n 1)
-          if [ -n "$MAIN_PATH" ]; then
-            python "$MAIN_PATH"
-          else
-            echo "CRITICAL ERROR: main.py is completely missing from this commit snapshot!"
-            exit 1
-          fi
-
+        run: python main.py
