@@ -18,25 +18,16 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Inspect Live Files
+      - name: Install Dependencies
         run: |
-          echo "=== ACTUAL MAIN BRANCH FILES ==="
-          ls -R
-          echo "================================"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run Engine Safely
+      - name: Run Engine Directly
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        run: |
-          TARGET=$(find . -name "main.py" -o -name "Main.py" | head -n 1)
-          if [ -n "$TARGET" ]; then
-            echo "Launching from: $TARGET"
-            python "$TARGET"
-          else
-            echo "ERROR: main.py genuinely does not exist anywhere on the main branch!"
-            exit 1
-          fi
+        run: python main.py
