@@ -23,7 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-generativeai requests edge-tts moviepy
 
-      - name: Run Engine via Wildcard
+      - name: Locate and Execute script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -31,5 +31,17 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          echo "=== Launching Python via Wildcard ==="
-          python *.py
+          echo "=== ABSOLUTE SEARCH ==="
+          # Find the exact full system path of main.py
+          REAL_PATH=$(find /home/runner/work/ -name "main.py" | head -n 1)
+          
+          if [ -n "$REAL_PATH" ]; then
+            echo "Found absolute path at: $REAL_PATH"
+            # Move to the directory where it belongs so it can find its assets
+            cd $(dirname "$REAL_PATH")
+            python main.py
+          else
+            echo "=== EMERGENCY FILE TREE ==="
+            find /home/runner/work/ -maxdepth 4
+            exit 1
+          fi
