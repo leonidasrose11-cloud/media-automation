@@ -23,7 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-generativeai requests edge-tts moviepy
 
-      - name: Run Engine Directly
+      - name: Run Engine via Wildcard
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -31,11 +31,5 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          # If main.py is in the root, run it. Otherwise, find it anywhere.
-          if [ -f "main.py" ]; then
-            python main.py
-          else
-            EXEC_PATH=$(find . -maxdepth 3 -name "main.py" | head -n 1)
-            echo "Executing via found path: $EXEC_PATH"
-            python "$EXEC_PATH"
-          fi
+          echo "=== Launching Python via Wildcard ==="
+          python *.py
