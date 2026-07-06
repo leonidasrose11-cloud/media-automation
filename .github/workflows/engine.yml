@@ -18,10 +18,10 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install Dependencies Manually
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install google-generativeai requests edge-tts moviepy
 
       - name: Run Engine Directly
         env:
@@ -30,4 +30,12 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-        run: python main.py
+        run: |
+          # If main.py is in the root, run it. Otherwise, find it anywhere.
+          if [ -f "main.py" ]; then
+            python main.py
+          else
+            EXEC_PATH=$(find . -maxdepth 3 -name "main.py" | head -n 1)
+            echo "Executing via found path: $EXEC_PATH"
+            python "$EXEC_PATH"
+          fi
