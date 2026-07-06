@@ -12,8 +12,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Force Checkout Main Branch
         uses: actions/checkout@v4
+        with:
+          ref: main # This completely forces it to pull your real files, no matter what!
 
       - name: Set up Python
         uses: actions/setup-python@v5
