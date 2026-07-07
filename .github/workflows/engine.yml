@@ -2,6 +2,10 @@ name: Apex Wealth Lab Autopilot Engine
 
 on:
   workflow_dispatch: 
+  schedule:
+    - cron: '0 7 * * *'  # Runs every day at 07:00 UTC
+    - cron: '0 14 * * *' # Runs every day at 14:00 UTC
+    - cron: '0 21 * * *' # Runs every day at 21:00 UTC
 
 jobs:
   build-and-run:
@@ -23,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-generativeai requests edge-tts moviepy
 
-      - name: Locate and Execute script
+      - name: Run Engine via Partial Match
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -31,17 +35,14 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          echo "=== ABSOLUTE SEARCH ==="
-          # Find the exact full system path of main.py
-          REAL_PATH=$(find /home/runner/work/ -name "main.py" | head -n 1)
+          echo "=== BYPASSING INVISIBLE CHARACTERS ==="
+          # Matches 'main.py' even with hidden trailing Unicode text
+          REAL_FILE=$(ls | grep -E '^main\.py')
           
-          if [ -n "$REAL_PATH" ]; then
-            echo "Found absolute path at: $REAL_PATH"
-            # Move to the directory where it belongs so it can find its assets
-            cd $(dirname "$REAL_PATH")
-            python main.py
+          if [ -n "$REAL_FILE" ]; then
+            echo "Successfully targeted raw filename: '$REAL_FILE'"
+            python "$REAL_FILE"
           else
-            echo "=== EMERGENCY FILE TREE ==="
-            find /home/runner/work/ -maxdepth 4
+            echo "Could not resolve the file."
             exit 1
           fi
