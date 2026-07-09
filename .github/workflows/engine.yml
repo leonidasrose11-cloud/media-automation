@@ -45,7 +45,8 @@ jobs:
           
           if [ -n "$REAL_FILE" ]; then
             echo "Successfully targeted raw filename: '$REAL_FILE'"
-            python "$REAL_FILE"
+            # Running with 'python -u' forces live, unbuffered logging to the screen!
+            python -u "$REAL_FILE"
           else
             echo "Could not resolve the file."
             exit 1
