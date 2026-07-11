@@ -15,7 +15,7 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 # [1/5] GEMINI SCRIPT GENERATION (14 MINS MAX LIMIT)
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-3.5-flash')
     
     prompt = """
     You are an expert financial analyst, scriptwriter, and viral content creator for the YouTube channel 'Apex Wealth Lab'.
