@@ -95,7 +95,7 @@ def fetch_luxury_stock_footage():
             
     return downloaded_paths
 
-# [4/5] MOVIEPY DYNAMIC RENDER ENGINE (FAST-PACED EDITING)
+# [4/5] MOVIEPY DYNAMIC RENDER ENGINE (FAST-PACED EDITING - OPTIMIZED)
 def render_luxury_videos():
     print("[4/5] Initiating MoviePy Luxury Aesthetic Editor...")
     audio_path = "voiceover.mp3"
@@ -112,38 +112,65 @@ def render_luxury_videos():
         print("Error: No downloaded clips found to compile.")
         sys.exit(1)
         
+    print(f"Pre-loading {len(clip_files)} source clips into memory to prevent resource exhaustion...")
+    loaded_videos = []
+    for file in clip_files:
+        try:
+            loaded_videos.append(VideoFileClip(file))
+        except Exception as e:
+            print(f"Skipping unreadable clip {file}: {e}")
+
+    if not loaded_videos:
+        print("Error: Total failure loading source video clips.")
+        sys.exit(1)
+
     processed_subclips = []
     current_time = 0
     
     print("Chopping clips into aggressive 2-second viral cuts with custom color grades...")
     while current_time < total_duration:
-        random.shuffle(clip_files)
-        for file in clip_files:
+        random.shuffle(loaded_videos)
+        for video in loaded_videos:
             if current_time >= total_duration:
                 break
             try:
-                with VideoFileClip(file) as video:
-                    # Snag a fast 2-second bite from a random starting point
-                    start_sec = random.uniform(0, max(0, video.duration - 2.5))
-                    subclip = video.subclip(start_sec, start_sec + 2.0).resize(newsize=(1920, 1080))
-                    
-                    # Apply a moody, rich dark luxury grade
-                    subclip = subclip.fx(vfx.colorx, 0.7)  
-                    
-                    processed_subclips.append(subclip)
-                    current_time += 2.0
+                # Snag a fast 2-second bite from a random starting point safely
+                if video.duration > 2.5:
+                    start_sec = random.uniform(0, video.duration - 2.5)
+                else:
+                    start_sec = 0
+                
+                # Slice and resize using pre-loaded memory reference
+                subclip = video.subclip(start_sec, start_sec + 2.0).resize(newsize=(1920, 1080))
+                
+                # Apply a moody, rich dark luxury grade
+                subclip = subclip.fx(vfx.colorx, 0.7)  
+                
+                processed_subclips.append(subclip)
+                current_time += 2.0
             except Exception as e:
+                print(f"Warning: Failed to slice clip segment: {e}")
                 continue
 
     print("Stitching compilation track and linking audio...")
     full_video_track = concatenate_videoclips(processed_subclips, method="compose")
     final_longform = full_video_track.set_audio(voiceover).set_duration(total_duration)
+    
+    print("Encoding final long-form video...")
     final_longform.write_videofile("final_longform.mp4", fps=30, codec="libx264", preset="ultrafast")
     
     print("Generating the center-cropped vertical 35-second viral Short...")
     short_clip = final_longform.subclip(60, 95).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
     short_clip.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
+    
+    # Close resources cleanly to clear runner RAM
+    print("Cleaning up video handles...")
+    for v in loaded_videos:
+        v.close()
+    voiceover.close()
+    
     print("Success! Luxury-grade video assets compiled completely.")
+
 
 # [5/5] YOUTUBE UPLOADER ENGINE (CLEAN DESCRIPTION - NO LINKS)
 def upload_to_youtube():
