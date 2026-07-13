@@ -30,7 +30,8 @@ jobs:
       - name: Install Dependencies Manually
         run: |
           python -m pip install --upgrade pip
-          pip install google-generativeai requests edge-tts moviepy==1.0.3
+          # We force Pillow 9.5.0 so old MoviePy can find the ANTIALIAS attribute
+          pip install google-generativeai requests edge-tts "Pillow==9.5.0" moviepy==1.0.3
 
       - name: Run Engine via Partial Match
         env:
@@ -45,7 +46,6 @@ jobs:
           
           if [ -n "$REAL_FILE" ]; then
             echo "Successfully targeted raw filename: '$REAL_FILE'"
-            # Running with 'python -u' forces live, unbuffered logging to the screen!
             python -u "$REAL_FILE"
           else
             echo "Could not resolve the file."
