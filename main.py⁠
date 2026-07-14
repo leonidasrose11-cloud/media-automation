@@ -1,11 +1,9 @@
 import os
 import sys
-import asyncio
 import json
 import random
 import requests
 import google.generativeai as genai
-import edge_tts
 from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, vfx
 
 # Configure APIs using secure environment variables
@@ -17,24 +15,28 @@ def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
     model = genai.GenerativeModel('gemini-3.5-flash')
     
-    prompt = """
-    You are an expert financial analyst, scriptwriter, and viral content creator for the YouTube channel 'Apex Wealth Lab'.
-    Write an incredibly detailed, high-retention YouTube video script about advanced wealth creation, macroeconomics, or hidden financial systems.
-    
-    TARGET AUDIENCE: High-value viewers in the US and Canada looking for deep financial intelligence.
-    
-    CRITICAL DURATION REQUIREMENT: The script MUST be between 1,600 and 1,800 words. This ensures the spoken voiceover hits a sweet spot of roughly 12 to 14 minutes max, keeping it completely safe from YouTube's unverified account limitations.
-    
-    RETENTION STRATEGIES TO ENFORCE:
-    - Open Loops: Drop subtle teases early on about a framework you will reveal at the very end of the video.
-    - Pattern Interrupts: Vary sentence lengths drastically. Use punchy, shocking micro-statements followed by data breakdowns.
-    - Seamless Short Transition: Ensure the absolute final sentence of the script creates an open loop that flows logically back into the video's title hook if it were replayed.
-    
-    Structure the script with a powerful introduction, core thesis breakdown, actionable wealth frameworks, and a retention-driven outro. 
-    DO NOT include stage directions, bracketed instructions, or speaker labels. Output ONLY the words to be spoken.
-    """
+    SYSTEM_INSTRUCTION = """
+You are a brilliant, slightly cynical, and highly sarcastic Gen Z financial analyst. 
+Your goal is to write highly engaging, fast-paced scripts for YouTube. 
+You absolutely hate traditional, boring, robotic "faceless slop" channels, and you refuse to write like them. 
+
+Strict Writing Rules:
+1. TONALITY: Conversational, witty, charismatic, and slightly sarcastic. Write exactly how a real human speaks—use short sentence fragments, dramatic pauses, and rhetorical questions. 
+2. HOOK: Never start with "Welcome to Apex Wealth Lab" or "In this video, we will explore...". Start with a punchy, shocking, or deeply contrarian statement in the first 3 seconds. (e.g., "Congratulations, your high-yield savings account is officially a scam. Here's how the bank is using your money to buy yachts while giving you crumbs.")
+3. LANGUAGE: Use natural Gen Z/modern internet slang where it fits naturally, but don't overdo it to the point of cringe. Think "rent-free", "side eye", "main character energy", "cooking", "mathematically cooked", or "bro really thought".
+4. PACING: High retention. Every sentence must lead directly into the next. Use humor, dry wit, and visual metaphors instead of dry economic definitions. (Instead of "inflation reduces purchasing power," say "inflation is basically the government silently tax-evading your pocket money while you're asleep.")
+5. CALL TO ACTION (CTA): Keep it subtle, brief, and clever. No begging for likes.
+6. FORMAT: Return ONLY the raw spoken text. Do not include sound effect cues, scene descriptions, or slide directions (like "[SFX: Cash Register]" or "[Visual: Car]"). Just the pure, raw transcript to be fed directly into the text-to-speech engine.
+"""
+
+    prompt = "Write a high-retention, engaging script about why traditional saving is a losing game and where smart money actually goes."
+
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            generation_config={"response_mime_type": "text/plain"},
+            system_instruction=SYSTEM_INSTRUCTION
+        )
         script_text = response.text
         with open("script.txt", "w", encoding="utf-8") as f:
             f.write(script_text)
@@ -44,22 +46,58 @@ def generate_script_from_gemini():
         print(f"Error generating script from Gemini: {e}")
         sys.exit(1)
 
-# [2/5] EDGE TTS VOICEOVER GENERATION
-async def generate_voiceover_async():
+# [2/5] ELEVENLABS VOICEOVER GENERATION
+def generate_voiceover(output_path="voiceover.mp3"):
+    print("[2/5] Synthesizing voiceover with ElevenLabs...")
+    
     if not os.path.exists("script.txt"):
         print("Error: script.txt not found!")
         sys.exit(1)
+        
     with open("script.txt", "r", encoding="utf-8") as f:
         text = f.read()
-    
-    voice = "en-US-ChristopherNeural"
-    communicate = edge_tts.Communicate(text, voice)
-    await communicate.save("voiceover.mp3")
-    print("Success! voiceover.mp3 generated completely.")
 
-def generate_voiceover():
-    print("[2/5] Synthesizing voiceover with Edge TTS...")
-    asyncio.run(generate_voiceover_async())
+    # Grab keys securely from environment variables
+    api_key = os.environ.get("ELEVENLABS_API_KEY")
+    # Default to a crisp male/narrator voice (e.g., 'pNInz6obpg75e3OcAncf') if no custom voice ID is provided
+    voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpg75e3OcAncf") 
+    
+    if not api_key:
+        print("Error: ELEVENLABS_API_KEY environment variable is missing!")
+        sys.exit(1)
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    
+    headers = {
+        "Accept": "audio/mpeg",
+        "Content-Type": "application/json",
+        "xi-api-key": api_key
+    }
+    
+    data = {
+        "text": text,
+        "model_id": "eleven_flash_v2",  # Ultra-fast, highly conversational, and light on API quotas
+        "voice_settings": {
+            "stability": 0.35,          # Low stability gives a more dramatic, conversational, and expressive performance
+            "similarity_boost": 0.8,
+            "style": 0.1,
+            "use_speaker_boost": True
+        }
+    }
+    
+    try:
+        response = requests.post(url, json=data, headers=headers)
+        if response.status_code == 200:
+            with open(output_path, "wb") as f:
+                f.write(response.content)
+            print("Success! voiceover.mp3 generated completely with ElevenLabs.")
+            return output_path
+        else:
+            print(f"ElevenLabs Error: {response.status_code} - {response.text}")
+            sys.exit(1)
+    except Exception as e:
+        print(f"Failed to connect to ElevenLabs API: {e}")
+        sys.exit(1)
 
 # [3/5] LUXURY FOOTAGE SCRAPER (DARK AESTHETIC EDITS)
 def fetch_luxury_stock_footage():
@@ -171,7 +209,6 @@ def render_luxury_videos():
     
     print("Success! Luxury-grade video assets compiled completely.")
 
-
 # [5/5] YOUTUBE UPLOADER ENGINE (CLEAN DESCRIPTION - NO LINKS)
 def upload_to_youtube():
     print("[5/5] Authorizing via OAuth 2.0 and uploading to YouTube...")
@@ -246,7 +283,7 @@ def upload_to_youtube():
 if __name__ == "__main__":
     print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
     generate_script_from_gemini()
-    generate_voiceover()
+    generate_voiceover()  # Runs ElevenLabs synchronously, directly matching your orchestration flow
     fetch_luxury_stock_footage()
     render_luxury_videos()
     upload_to_youtube()
