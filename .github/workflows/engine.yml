@@ -33,7 +33,7 @@ jobs:
           # We force Pillow 9.5.0 so old MoviePy can find the ANTIALIAS attribute
           pip install google-generativeai requests edge-tts "Pillow==9.5.0" moviepy==1.0.3
 
-        - name: Run Autopilot Engine
+      - name: Run Autopilot Engine
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -43,7 +43,6 @@ jobs:
           # New ElevenLabs credentials
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }} # Optional: omit if you want to use the default narrator voice
-
         run: |
           echo "=== BYPASSING INVISIBLE CHARACTERS ==="
           REAL_FILE=$(ls | grep -E '^main\.py')
