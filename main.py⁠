@@ -1,4 +1,4 @@
-import os
+iimport os
 import sys
 import json
 import random
@@ -13,7 +13,6 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 # [1/5] GEMINI SCRIPT GENERATION (14 MINS MAX LIMIT)
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
-    model = genai.GenerativeModel('gemini-3.5-flash')
     
     SYSTEM_INSTRUCTION = """
 You are a brilliant, slightly cynical, and highly sarcastic Gen Z financial analyst. 
@@ -29,13 +28,19 @@ Strict Writing Rules:
 6. FORMAT: Return ONLY the raw spoken text. Do not include sound effect cues, scene descriptions, or slide directions (like "[SFX: Cash Register]" or "[Visual: Car]"). Just the pure, raw transcript to be fed directly into the text-to-speech engine.
 """
 
+    # Pass system_instruction here when initializing the model, not inside generate_content!
+    model = genai.GenerativeModel(
+        model_name='gemini-2.5-flash',
+        system_instruction=SYSTEM_INSTRUCTION
+    )
+    
     prompt = "Write a high-retention, engaging script about why traditional saving is a losing game and where smart money actually goes."
 
     try:
+        # Keep this clean without system_instruction inside
         response = model.generate_content(
             prompt,
-            generation_config={"response_mime_type": "text/plain"},
-            system_instruction=SYSTEM_INSTRUCTION
+            generation_config={"response_mime_type": "text/plain"}
         )
         script_text = response.text
         with open("script.txt", "w", encoding="utf-8") as f:
