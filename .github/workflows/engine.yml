@@ -22,10 +22,12 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies
+        - name: Install System Dependencies for Video Editing
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y imagemagick
+          # Fix the default security policy that blocks MoviePy text rendering
+          sudo sed -i 's/domain="coder" rights="none" pattern="PDF"/domain="coder" rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml
 
       - name: Install Dependencies Manually
         run: |
