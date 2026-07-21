@@ -4,13 +4,13 @@ import json
 import random
 import requests
 import google.generativeai as genai
-from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, vfx
+from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, TextClip, CompositeVideoClip
+import moviepy.video.fx.all as vfx
 
 # Configure APIs using secure environment variables
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
-# [1/5] GEMINI SCRIPT GENERATION (14 MINS MAX LIMIT)
+# [1/5] GEMINI SCRIPT GENERATION
 def generate_script_from_gemini():
     print("[1/5] Querying Gemini API for high-retention finance topics...")
     
@@ -20,15 +20,14 @@ Your goal is to write highly engaging, fast-paced scripts for YouTube.
 You absolutely hate traditional, boring, robotic "faceless slop" channels, and you refuse to write like them. 
 
 Strict Writing Rules:
-1. TONALITY: Conversational, witty, charismatic, and slightly sarcastic. Write exactly how a real human speaks—use short sentence fragments, dramatic pauses, and rhetorical questions. 
-2. HOOK: Never start with "Welcome to Apex Wealth Lab" or "In this video, we will explore...". Start with a punchy, shocking, or deeply contrarian statement in the first 3 seconds. (e.g., "Congratulations, your high-yield savings account is officially a scam. Here's how the bank is using your money to buy yachts while giving you crumbs.")
-3. LANGUAGE: Use natural Gen Z/modern internet slang where it fits naturally, but don't overdo it to the point of cringe. Think "rent-free", "side eye", "main character energy", "cooking", "mathematically cooked", or "bro really thought".
-4. PACING: High retention. Every sentence must lead directly into the next. Use humor, dry wit, and visual metaphors instead of dry economic definitions. (Instead of "inflation reduces purchasing power," say "inflation is basically the government silently tax-evading your pocket money while you're asleep.")
+1. TONALITY: Conversational, witty, charismatic, and slightly sarcastic. Use short sentence fragments, dramatic pauses, and rhetorical questions. 
+2. HOOK: Never start with "Welcome to Apex Wealth Lab". Start with a punchy, shocking, or deeply contrarian statement in the first 3 seconds.
+3. LANGUAGE: Use natural Gen Z/modern internet slang where it fits naturally ("rent-free", "side eye", "main character energy", "cooking", "mathematically cooked").
+4. PACING: High retention. Every sentence leads directly into the next. Use humor and dry wit.
 5. CALL TO ACTION (CTA): Keep it subtle, brief, and clever. No begging for likes.
-6. FORMAT: Return ONLY the raw spoken text. Do not include sound effect cues, scene descriptions, or slide directions (like "[SFX: Cash Register]" or "[Visual: Car]"). Just the pure, raw transcript to be fed directly into the text-to-speech engine.
+6. FORMAT: Return ONLY the raw spoken text. Do not include sound effect cues, scene descriptions, or slide directions.
 """
 
-    # Pass system_instruction here when initializing the model, not inside generate_content!
     model = genai.GenerativeModel(
         model_name='gemini-2.5-flash',
         system_instruction=SYSTEM_INSTRUCTION
@@ -37,7 +36,6 @@ Strict Writing Rules:
     prompt = "Write a high-retention, engaging script about why traditional saving is a losing game and where smart money actually goes."
 
     try:
-        # Keep this clean without system_instruction inside
         response = model.generate_content(
             prompt,
             generation_config={"response_mime_type": "text/plain"}
@@ -62,9 +60,7 @@ def generate_voiceover(output_path="voiceover.mp3"):
     with open("script.txt", "r", encoding="utf-8") as f:
         text = f.read()
 
-    # Grab keys securely from environment variables
     api_key = os.environ.get("ELEVENLABS_API_KEY")
-    # Default to a crisp male/narrator voice (e.g., 'pNInz6obpg75e3OcAncf') if no custom voice ID is provided
     voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpg75e3OcAncf") 
     
     if not api_key:
@@ -81,9 +77,9 @@ def generate_voiceover(output_path="voiceover.mp3"):
     
     data = {
         "text": text,
-        "model_id": "eleven_flash_v2",  # Ultra-fast, highly conversational, and light on API quotas
+        "model_id": "eleven_flash_v2",
         "voice_settings": {
-            "stability": 0.35,          # Low stability gives a more dramatic, conversational, and expressive performance
+            "stability": 0.35,
             "similarity_boost": 0.8,
             "style": 0.1,
             "use_speaker_boost": True
@@ -104,81 +100,9 @@ def generate_voiceover(output_path="voiceover.mp3"):
         print(f"Failed to connect to ElevenLabs API: {e}")
         sys.exit(1)
 
-# [3/5] LUXURY FOOTAGE SCRAPER (DARK AESTHETIC EDITS)
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip
-import moviepy.video.fx.all as vfx
-import os
-import sys
-
-def render_luxury_videos(script_text, audio_path, output_path="final_output.mp4"):
-    print("[3/5] Starting video render with dynamic subtitle overlays...")
-    
-    # 1. Load background footage and voiceover audio
-    if not os.path.exists("downloaded_luxury_footage.mp4"):
-        print("Error: Background video file missing!")
-        sys.exit(1)
-        
-    video_clip = VideoFileClip("downloaded_luxury_footage.mp4")
-    audio_clip = AudioFileClip(audio_path)
-    
-    duration = audio_clip.duration
-    video_clip = video_clip.subclip(0, duration).set_audio(audio_clip)
-    
-    # Apply the signature 30% darker color grade
-    video_clip = video_clip.fx(vfx.colorx, 0.7)
-    
-    # 2. SUBTITLE ENGINE: Split text and map timings
-    words = script_text.split()
-    total_words = len(words)
-    
-    # Estimate words-per-minute pacing based on audio length
-    wpm = (total_words / duration) * 60
-    sec_per_word = 60 / wpm
-    
-    chunk_size = 3
-    clips_to_composite = [video_clip]
-    current_time = 0.0
-    
-    for i in range(0, total_words, chunk_size):
-        chunk = words[i:i+chunk_size]
-        subtitle_text = " ".join(chunk).upper() # Uppercase for punchy impact
-        
-        chunk_duration = len(chunk) * sec_per_word
-        
-        # Create text overlay clip
-        txt_clip = (TextClip(subtitle_text, 
-                             fontsize=55, 
-                             font='Arial-Bold', 
-                             color='white', 
-                             stroke_color='black', 
-                             stroke_width=2,
-                             method='caption',
-                             size=(video_clip.w - 100, None))
-                    .set_start(current_time)
-                    .set_duration(chunk_duration)
-                    .set_position(('center', 'center')))
-        
-        clips_to_composite.append(txt_clip)
-        current_time += chunk_duration
-
-    # 3. Composite and render the final track
-    print("[4/5] Compositing subtitles onto video track...")
-    final_video = CompositeVideoClip(clips_to_composite)
-    
-    print("[5/5] Exporting final video file...")
-    final_video.write_videofile(
-        output_path, 
-        fps=30, 
-        codec="libx264", 
-        audio_codec="aac",
-        threads=4
-    )
-    print(f"Success! Video rendered with burnt-in subtitles at: {output_path}")
-
-
-# [4/5] MOVIEPY DYNAMIC RENDER ENGINE (FAST-PACED EDITING - OPTIMIZED)
-def render_luxury_videos():
-    print("[4/5] Initiating MoviePy Luxury Aesthetic Editor...")
+# [3/5 & 4/5] MOVIEPY DYNAMIC RENDER ENGINE (WITH BURNT-IN SUBTITLES)
+def render_luxury_videos(script_text):
+    print("[3/5 & 4/5] Initiating MoviePy Luxury Aesthetic Editor with Subtitles...")
     audio_path = "voiceover.mp3"
     
     if not os.path.exists(audio_path):
@@ -188,12 +112,16 @@ def render_luxury_videos():
     voiceover = AudioFileClip(audio_path)
     total_duration = voiceover.duration
     
+    if not os.path.exists("raw_clips"):
+        print("Error: 'raw_clips' directory missing!")
+        sys.exit(1)
+
     clip_files = [f"raw_clips/{f}" for f in os.listdir("raw_clips") if f.endswith(".mp4")]
     if not clip_files:
-        print("Error: No downloaded clips found to compile.")
+        print("Error: No downloaded clips found inside 'raw_clips/'.")
         sys.exit(1)
         
-    print(f"Pre-loading {len(clip_files)} source clips into memory to prevent resource exhaustion...")
+    print(f"Pre-loading {len(clip_files)} source clips into memory...")
     loaded_videos = []
     for file in clip_files:
         try:
@@ -215,16 +143,11 @@ def render_luxury_videos():
             if current_time >= total_duration:
                 break
             try:
-                # Snag a fast 2-second bite from a random starting point safely
-                if video.duration > 2.5:
-                    start_sec = random.uniform(0, video.duration - 2.5)
-                else:
-                    start_sec = 0
+                start_sec = random.uniform(0, video.duration - 2.5) if video.duration > 2.5 else 0
                 
-                # Slice and resize using pre-loaded memory reference
+                # Slice and resize
                 subclip = video.subclip(start_sec, start_sec + 2.0).resize(newsize=(1920, 1080))
-                
-                # Apply a moody, rich dark luxury grade
+                # Apply 30% darker luxury color grade
                 subclip = subclip.fx(vfx.colorx, 0.7)  
                 
                 processed_subclips.append(subclip)
@@ -234,25 +157,57 @@ def render_luxury_videos():
                 continue
 
     print("Stitching compilation track and linking audio...")
-    full_video_track = concatenate_videoclips(processed_subclips, method="compose")
-    final_longform = full_video_track.set_audio(voiceover).set_duration(total_duration)
+    background_video = concatenate_videoclips(processed_subclips, method="compose").subclip(0, total_duration)
+
+    # SUBTITLE ENGINE OVERLAY
+    print("Generating dynamic text overlays...")
+    words = script_text.split()
+    total_words = len(words)
+    wpm = (total_words / total_duration) * 60
+    sec_per_word = 60 / wpm if wpm > 0 else 0.4
     
+    chunk_size = 3
+    clips_to_composite = [background_video]
+    sub_time = 0.0
+    
+    for i in range(0, total_words, chunk_size):
+        chunk = words[i:i+chunk_size]
+        subtitle_text = " ".join(chunk).upper()
+        chunk_duration = len(chunk) * sec_per_word
+        
+        txt_clip = (TextClip(subtitle_text, 
+                             fontsize=55, 
+                             font='Arial-Bold', 
+                             color='white', 
+                             stroke_color='black', 
+                             stroke_width=2,
+                             method='caption',
+                             size=(1920 - 200, None))
+                    .set_start(sub_time)
+                    .set_duration(chunk_duration)
+                    .set_position(('center', 'center')))
+        
+        clips_to_composite.append(txt_clip)
+        sub_time += chunk_duration
+
+    final_comp = CompositeVideoClip(clips_to_composite).set_audio(voiceover).set_duration(total_duration)
+
     print("Encoding final long-form video...")
-    final_longform.write_videofile("final_longform.mp4", fps=30, codec="libx264", preset="ultrafast")
+    final_comp.write_videofile("final_longform.mp4", fps=30, codec="libx264", preset="ultrafast")
     
-    print("Generating the center-cropped vertical 35-second viral Short...")
-    short_clip = final_longform.subclip(60, 95).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
-    short_clip.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
-    
-    # Close resources cleanly to clear runner RAM
+    # Generate vertical Short snippet if longer than 60 seconds
+    if total_duration > 65:
+        print("Generating center-cropped vertical Short...")
+        short_clip = final_comp.subclip(30, 65).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
+        short_clip.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
+
     print("Cleaning up video handles...")
     for v in loaded_videos:
         v.close()
     voiceover.close()
-    
-    print("Success! Luxury-grade video assets compiled completely.")
+    print("Success! Subtitled video assets compiled completely.")
 
-# [5/5] YOUTUBE UPLOADER ENGINE (CLEAN DESCRIPTION - NO LINKS)
+# [5/5] YOUTUBE UPLOADER ENGINE
 def upload_to_youtube():
     print("[5/5] Authorizing via OAuth 2.0 and uploading to YouTube...")
     from googleapiclient.discovery import build
@@ -263,6 +218,10 @@ def upload_to_youtube():
     client_id = os.environ.get("YOUTUBE_CLIENT_ID")
     client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
     
+    if not all([refresh_token, client_id, client_secret]):
+        print("YouTube API secrets missing. Skipping upload step.")
+        return
+
     creds = Credentials(
         token=None,
         refresh_token=refresh_token,
@@ -274,7 +233,6 @@ def upload_to_youtube():
     try:
         youtube = build("youtube", "v3", credentials=creds)
         
-        # Clean, focus-driven descriptions
         longform_description = (
             "Discover advanced wealth creation frameworks, financial intelligence, and macroeconomic shifts.\n\n"
             "Welcome to Apex Wealth Lab. We decode the hidden systems behind global markets.\n\n"
@@ -325,9 +283,8 @@ def upload_to_youtube():
 
 if __name__ == "__main__":
     print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
-    generate_script_from_gemini()
-    generate_voiceover()  # Runs ElevenLabs synchronously, directly matching your orchestration flow
-    fetch_luxury_stock_footage()
-    render_luxury_videos()
+    script = generate_script_from_gemini()
+    generate_voiceover()
+    render_luxury_videos(script)
     upload_to_youtube()
     print("--- PIPELINE EXECUTION SUCCESSFUL ---")
