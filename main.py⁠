@@ -61,7 +61,10 @@ def generate_voiceover(output_path="voiceover.mp3"):
         text = f.read()
 
     api_key = os.environ.get("ELEVENLABS_API_KEY")
-    voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpg75e3OcAncf") 
+
+# Strip out any trailing spaces or newlines automatically
+voice_id = os.environ.get("ELEVENLABS_VOICE_ID").strip()
+
     
     if not api_key:
         print("Error: ELEVENLABS_API_KEY environment variable is missing!")
