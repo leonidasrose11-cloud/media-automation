@@ -103,12 +103,16 @@ def generate_voiceover(output_path="voiceover.mp3"):
 
 # [3/5 & 4/5] MOVIEPY DYNAMIC RENDER ENGINE (WITH BURNT-IN SUBTITLES)
 def render_luxury_videos(script_text):
-    print("[3/5 & 4/5] Initiating MoviePy Luxury Aesthetic Editor with Subtitles...")
-    audio_path = "voiceover.mp3"
-    
-    if not os.path.exists(audio_path):
-        print("Error: Voiceover file missing.")
+    # Make sure raw_clips directory exists so it doesn't crash
+    if not os.path.exists("raw_clips"):
+        os.makedirs("raw_clips")
+        print("Created missing 'raw_clips' directory.")
+
+    clip_files = [f"raw_clips/{f}" for f in os.listdir("raw_clips") if f.endswith(".mp4")]
+    if not clip_files:
+        print("Error: No downloaded clips found inside 'raw_clips/'. Please add some .mp4 clips!")
         sys.exit(1)
+
 
     voiceover = AudioFileClip(audio_path)
     total_duration = voiceover.duration
