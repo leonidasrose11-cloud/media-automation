@@ -30,11 +30,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install google-generativeai requests moviepy==1.0.3 imageio-ffmpeg
 
-      - name: Run Autopilot Engine (Invisible Char Bypass)
-        env:
+            env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: |
           echo "=== BYPASSING INVISIBLE CHARACTERS ==="
           REAL_FILE=$(ls | grep -E 'main.*py' | head -n 1)
