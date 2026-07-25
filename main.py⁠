@@ -343,6 +343,8 @@ if __name__ == "__main__":
     print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
     script = generate_script_from_gemini()
     generate_voiceover()
+    fetch_luxury_stock_footage(query="dark luxury wealth lifestyle mansion sports car", num_clips=6)
     render_luxury_videos(script)
     upload_to_youtube()
     print("--- PIPELINE EXECUTION SUCCESSFUL ---")
+
