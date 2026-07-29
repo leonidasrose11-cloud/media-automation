@@ -1,360 +1,49 @@
+import asyncio
+import requests
 import os
 import sys
-import json
-import random
-import requests
-import google.generativeai as genai
-from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, TextClip, CompositeVideoClip
-import moviepy.video.fx.all as vfx
 
-# Configure APIs using secure environment variables
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# [1/5] GEMINI SCRIPT GENERATION
-def generate_script_from_gemini():
-    print("[1/5] Querying Gemini API for high-retention finance topics...")
+def generate_voiceover(text, output_file="voiceover.mp3"):
+    print("[2/5] Synthesizing voiceover...")
     
-    SYSTEM_INSTRUCTION = """
-You are a brilliant, slightly cynical, and highly sarcastic Gen Z financial analyst. 
-Your goal is to write highly engaging, fast-paced scripts for YouTube. 
-You absolutely hate traditional, boring, robotic "faceless slop" channels, and you refuse to write like them. 
-
-Strict Writing Rules:
-1. TONALITY: Conversational, witty, charismatic, and slightly sarcastic. Use short sentence fragments, dramatic pauses, and rhetorical questions. 
-2. HOOK: Never start with "Welcome to Apex Wealth Lab". Start with a punchy, shocking, or deeply contrarian statement in the first 3 seconds.
-3. LANGUAGE: Use natural Gen Z/modern internet slang where it fits naturally ("rent-free", "side eye", "main character energy", "cooking", "mathematically cooked").
-4. PACING: High retention. Every sentence leads directly into the next. Use humor and dry wit.
-5. CALL TO ACTION (CTA): Keep it subtle, brief, and clever. No begging for likes.
-6. FORMAT: Return ONLY the raw spoken text. Do not include sound effect cues, scene descriptions, or slide directions.
-"""
-
-    model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash',
-        system_instruction=SYSTEM_INSTRUCTION
-    )
+    elevenlabs_key = os.getenv("ELEVENLABS_API_KEY")
+    voice_id = os.getenv("ELEVENLABS_VOICE_ID")
     
-    prompt = "Write a high-retention, engaging script about why traditional saving is a losing game and where smart money actually goes."
-
-    try:
-        response = model.generate_content(
-            prompt,
-            generation_config={"response_mime_type": "text/plain"}
-        )
-        script_text = response.text
-        with open("script.txt", "w", encoding="utf-8") as f:
-            f.write(script_text)
-        print(f"Success! Generated a script of {len(script_text.split())} words.")
-        return script_text
-    except Exception as e:
-        print(f"Error generating script from Gemini: {e}")
-        sys.exit(1)
-
-# [2/5] ELEVENLABS VOICEOVER GENERATION
-def generate_voiceover(output_path="voiceover.mp3"):
-    print("[2/5] Synthesizing voiceover with ElevenLabs...")
-    
-    if not os.path.exists("script.txt"):
-        print("Error: script.txt not found!")
-        sys.exit(1)
-        
-    with open("script.txt", "r", encoding="utf-8") as f:
-        text = f.read()
-
-    api_key = os.environ.get("ELEVENLABS_API_KEY")
-    voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpg75e3OcAncf").strip()
-    
-    if not api_key:
-        print("Error: ELEVENLABS_API_KEY environment variable is missing!")
-        sys.exit(1)
-
-
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-    
-    headers = {
-        "Accept": "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": api_key
-    }
-    
-    data = {
-        "text": text,
-        "model_id": "eleven_flash_v2",
-        "voice_settings": {
-            "stability": 0.35,
-            "similarity_boost": 0.8,
-            "style": 0.1,
-            "use_speaker_boost": True
+    # Attempt 1: Try ElevenLabs
+    if elevenlabs_key and voice_id:
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+        headers = {
+            "Accept": "audio/mpeg",
+            "Content-Type": "application/json",
+            "xi-api-key": elevenlabs_key
         }
-    }
-    
-    try:
+        data = {
+            "text": text,
+            "model_id": "eleven_monolingual_v1",
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+        }
+        
         response = requests.post(url, json=data, headers=headers)
+        
         if response.status_code == 200:
-            with open(output_path, "wb") as f:
+            with open(output_file, "wb") as f:
                 f.write(response.content)
-            print("Success! voiceover.mp3 generated completely with ElevenLabs.")
-            return output_path
+            print("Success! Voiceover generated with ElevenLabs.")
+            return
         else:
-            print(f"ElevenLabs Error: {response.status_code} - {response.text}")
-            sys.exit(1)
-    except Exception as e:
-        print(f"Failed to connect to ElevenLabs API: {e}")
-        sys.exit(1)
+            print(f"ElevenLabs hit limit/error ({response.status_code}). Switching to Edge-TTS Neural fallback...")
 
-# [3/5] AUTOMATIC PEXELS STOCK FOOTAGE DOWNLOAER
-def fetch_luxury_stock_footage(query="luxury lifestyle architecture rich", num_clips=5):
-    print("[3/5] Fetching 4K/HD stock footage from Pexels API...")
-    
-    pexels_api_key = os.environ.get("PEXELS_API_KEY")
-    if not pexels_api_key:
-        print("Error: PEXELS_API_KEY environment variable is missing!")
-        sys.exit(1)
-
-    # Create raw_clips directory dynamically
-    os.makedirs("raw_clips", exist_ok=True)
-
-    headers = {"Authorization": pexels_api_key}
-    url = f"https://api.pexels.com/videos/search?query={query}&per_page={num_clips}&orientation=landscape"
+    # Attempt 2: Fallback to Edge-TTS (en-US-ChristopherNeural)
+    async def run_edge_tts():
+        import edge_tts
+        # Options: "en-US-ChristopherNeural", "en-US-GuyNeural", "en-US-AvaNeural"
+        voice = "en-US-ChristopherNeural" 
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(output_file)
 
     try:
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            print(f"Pexels API Error: {response.status_code} - {response.text}")
-            sys.exit(1)
-
-        data = response.json()
-        videos = data.get("videos", [])
-        
-        if not videos:
-            print("No videos found on Pexels for query!")
-            sys.exit(1)
-
-        downloaded_count = 0
-        for i, video in enumerate(videos):
-            # Grab the best HD/4K video file URL
-            video_files = video.get("video_files", [])
-            # Filter for HD quality mp4s
-            hd_files = [f for f in video_files if f.get("file_type") == "video/mp4" and f.get("width", 0) >= 1280]
-            
-            target_file = hd_files[0] if hd_files else (video_files[0] if video_files else None)
-            
-            if target_file:
-                download_url = target_file.get("link")
-                file_path = f"raw_clips/clip_{i+1}.mp4"
-                
-                print(f"Downloading clip {i+1}/{len(videos)} from Pexels...")
-                clip_data = requests.get(download_url).content
-                with open(file_path, "wb") as f:
-                    f.write(clip_data)
-                downloaded_count += 1
-
-        print(f"Success! Downloaded {downloaded_count} stock video clips into 'raw_clips/'.")
-
+        asyncio.run(run_edge_tts())
+        print("Success! Voiceover generated with Edge-TTS Neural voice (en-US-ChristopherNeural).")
     except Exception as e:
-        print(f"Failed to download Pexels footage: {e}")
+        print(f"Error generating voiceover with Edge-TTS: {e}")
         sys.exit(1)
-
-# [3/5 & 4/5] MOVIEPY DYNAMIC RENDER ENGINE (WITH BURNT-IN SUBTITLES)
-def render_luxury_videos(script_text):
-    print("[4/5] Initiating MoviePy Luxury Aesthetic Editor with Subtitles...")
-    
-    # DEFINE AUDIO PATH HERE
-    audio_path = "voiceover.mp3"
-    
-    if not os.path.exists(audio_path):
-        print("Error: Voiceover file missing.")
-        sys.exit(1)
-
-    voiceover = AudioFileClip(audio_path)
-    total_duration = voiceover.duration
-    
-    # ... rest of your rendering code stays the same ...
-
-
-    clip_files = [f"raw_clips/{f}" for f in os.listdir("raw_clips") if f.endswith(".mp4")]
-    if not clip_files:
-        print("Error: No downloaded clips found inside 'raw_clips/'. Please add some .mp4 clips!")
-        sys.exit(1)
-
-
-    voiceover = AudioFileClip(audio_path)
-    total_duration = voiceover.duration
-    
-    if not os.path.exists("raw_clips"):
-        print("Error: 'raw_clips' directory missing!")
-        sys.exit(1)
-
-    clip_files = [f"raw_clips/{f}" for f in os.listdir("raw_clips") if f.endswith(".mp4")]
-    if not clip_files:
-        print("Error: No downloaded clips found inside 'raw_clips/'.")
-        sys.exit(1)
-        
-    print(f"Pre-loading {len(clip_files)} source clips into memory...")
-    loaded_videos = []
-    for file in clip_files:
-        try:
-            loaded_videos.append(VideoFileClip(file))
-        except Exception as e:
-            print(f"Skipping unreadable clip {file}: {e}")
-
-    if not loaded_videos:
-        print("Error: Total failure loading source video clips.")
-        sys.exit(1)
-
-    processed_subclips = []
-    current_time = 0
-    
-    print("Chopping clips into aggressive 2-second viral cuts with custom color grades...")
-    while current_time < total_duration:
-        random.shuffle(loaded_videos)
-        for video in loaded_videos:
-            if current_time >= total_duration:
-                break
-            try:
-                start_sec = random.uniform(0, video.duration - 2.5) if video.duration > 2.5 else 0
-                
-                # Slice and resize
-                subclip = video.subclip(start_sec, start_sec + 2.0).resize(newsize=(1920, 1080))
-                # Apply 30% darker luxury color grade
-                subclip = subclip.fx(vfx.colorx, 0.7)  
-                
-                processed_subclips.append(subclip)
-                current_time += 2.0
-            except Exception as e:
-                print(f"Warning: Failed to slice clip segment: {e}")
-                continue
-
-    print("Stitching compilation track and linking audio...")
-    background_video = concatenate_videoclips(processed_subclips, method="compose").subclip(0, total_duration)
-
-    # SUBTITLE ENGINE OVERLAY
-    print("Generating dynamic text overlays...")
-    words = script_text.split()
-    total_words = len(words)
-    wpm = (total_words / total_duration) * 60
-    sec_per_word = 60 / wpm if wpm > 0 else 0.4
-    
-    chunk_size = 3
-    clips_to_composite = [background_video]
-    sub_time = 0.0
-    
-    for i in range(0, total_words, chunk_size):
-        chunk = words[i:i+chunk_size]
-        subtitle_text = " ".join(chunk).upper()
-        chunk_duration = len(chunk) * sec_per_word
-        
-        txt_clip = (TextClip(subtitle_text, 
-                             fontsize=55, 
-                             font='Arial-Bold', 
-                             color='white', 
-                             stroke_color='black', 
-                             stroke_width=2,
-                             method='caption',
-                             size=(1920 - 200, None))
-                    .set_start(sub_time)
-                    .set_duration(chunk_duration)
-                    .set_position(('center', 'center')))
-        
-        clips_to_composite.append(txt_clip)
-        sub_time += chunk_duration
-
-    final_comp = CompositeVideoClip(clips_to_composite).set_audio(voiceover).set_duration(total_duration)
-
-    print("Encoding final long-form video...")
-    final_comp.write_videofile("final_longform.mp4", fps=30, codec="libx264", preset="ultrafast")
-    
-    # Generate vertical Short snippet if longer than 60 seconds
-    if total_duration > 65:
-        print("Generating center-cropped vertical Short...")
-        short_clip = final_comp.subclip(30, 65).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
-        short_clip.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
-
-    print("Cleaning up video handles...")
-    for v in loaded_videos:
-        v.close()
-    voiceover.close()
-    print("Success! Subtitled video assets compiled completely.")
-
-# [5/5] YOUTUBE UPLOADER ENGINE
-def upload_to_youtube():
-    print("[5/5] Authorizing via OAuth 2.0 and uploading to YouTube...")
-    from googleapiclient.discovery import build
-    from googleapiclient.http import MediaFileUpload
-    from google.oauth2.credentials import Credentials
-    
-    refresh_token = os.environ.get("YOUTUBE_REFRESH_TOKEN")
-    client_id = os.environ.get("YOUTUBE_CLIENT_ID")
-    client_secret = os.environ.get("YOUTUBE_CLIENT_SECRET")
-    
-    if not all([refresh_token, client_id, client_secret]):
-        print("YouTube API secrets missing. Skipping upload step.")
-        return
-
-    creds = Credentials(
-        token=None,
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_id,
-        client_secret=client_secret
-    )
-    
-    try:
-        youtube = build("youtube", "v3", credentials=creds)
-        
-        longform_description = (
-            "Discover advanced wealth creation frameworks, financial intelligence, and macroeconomic shifts.\n\n"
-            "Welcome to Apex Wealth Lab. We decode the hidden systems behind global markets.\n\n"
-            "#finance #wealth #macroeconomics #financialfreedom"
-        )
-        
-        shorts_description = "The hidden reality of asset allocation. #finance #wealth #shorts"
-        
-        if os.path.exists("final_longform.mp4"):
-            print("Uploading long-form video...")
-            longform_body = {
-                "snippet": {
-                    "title": "The Hidden Financial System Exploited by the 1% (Masterclass)",
-                    "description": longform_description,
-                    "categoryId": "27"
-                },
-                "status": {
-                    "privacyStatus": "public",
-                    "selfDeclaredMadeForKids": False
-                }
-            }
-            media_long = MediaFileUpload("final_longform.mp4", chunksize=-1, resumable=True)
-            request_long = youtube.videos().insert(part="snippet,status", body=longform_body, media_body=media_long)
-            response_long = request_long.execute()
-            print(f"Success! Long-form uploaded. Video ID: {response_long.get('id')}")
-            
-        if os.path.exists("final_short.mp4"):
-            print("Uploading viral vertical Short...")
-            short_body = {
-                "snippet": {
-                    "title": "The fastest way to build wealth in 2026 💸 #shorts #finance",
-                    "description": shorts_description,
-                    "categoryId": "27"
-                },
-                "status": {
-                    "privacyStatus": "public",
-                    "selfDeclaredMadeForKids": False
-                }
-            }
-            media_short = MediaFileUpload("final_short.mp4", chunksize=-1, resumable=True)
-            request_short = youtube.videos().insert(part="snippet,status", body=short_body, media_body=media_short)
-            response_short = request_short.execute()
-            print(f"Success! Shorts uploaded. Video ID: {response_short.get('id')}")
-            
-    except Exception as e:
-        print(f"An error occurred during YouTube upload execution: {e}")
-        sys.exit(1)
-
-if __name__ == "__main__":
-    print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
-    script = generate_script_from_gemini()
-    generate_voiceover()
-    fetch_luxury_stock_footage(query="dark luxury wealth lifestyle mansion sports car", num_clips=6)
-    render_luxury_videos(script)
-    upload_to_youtube()
-    print("--- PIPELINE EXECUTION SUCCESSFUL ---")
-
