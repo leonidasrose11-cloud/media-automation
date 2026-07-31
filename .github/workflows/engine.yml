@@ -3,9 +3,9 @@ name: Apex Wealth Lab Autopilot Engine
 on:
   schedule:
     # Runs 3x daily at high-retention US Finance windows:
-    # 1. 11:30 UTC -> 7:30 AM EST (Morning News & Commute)
-    # 2. 16:30 UTC -> 12:30 PM EST (Midday Lunch Break)
-    # 3. 21:30 UTC -> 5:30 PM EST (After-Work Evening Peak)
+    # 1. 11:30 UTC -> 7:30 AM EST
+    # 2. 16:30 UTC -> 12:30 PM EST
+    # 3. 21:30 UTC -> 5:30 PM EST
     - cron: '30 11,16,21 * * *'
   workflow_dispatch:
   push:
