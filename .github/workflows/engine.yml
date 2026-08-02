@@ -29,13 +29,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
-          sudo sed -i 's/domain="coder" rights="none" pattern="PDF"/domain="coder" rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml
+          # Fix ImageMagick security policy for PDF & Text handling in MoviePy
+          sudo sed -i 's/rights="none" pattern="@\*"/rights="read|write" pattern="@\*"/g' /etc/ImageMagick-6/policy.xml || true
+          sudo sed -i 's/domain="coder" rights="none" pattern="PDF"/domain="coder" rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml || true
+          # Remove restrictive policy limits on path reading
+          sudo sed -i '/policy domain="path" rights="none"/d' /etc/ImageMagick-6/policy.xml || true
 
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install google-generativeai requests moviepy==1.0.3 imageio-ffmpeg google-api-python-client google-auth-oauthlib google-auth-httplib2 edge-tts "Pillow<10.0.0" opencv-python
-
 
       - name: Run Autopilot Engine
         env:
