@@ -4,29 +4,46 @@ import json
 import random
 import requests
 import asyncio
+import PIL.Image
+
+# Patch PIL for MoviePy compatibility
+if not hasattr(PIL.Image, 'ANTIALIAS'):
+    PIL.Image.ANTIALIAS = getattr(PIL.Image, 'LANCZOS', PIL.Image.BICUBIC)
+
 import google.generativeai as genai
 from moviepy.editor import VideoFileClip, concatenate_videoclips, AudioFileClip, TextClip, CompositeVideoClip
 import moviepy.video.fx.all as vfx
 
-# Configure APIs using secure environment variables
+# Configure API
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# [1/5] GEMINI SCRIPT GENERATION
+FINANCE_TOPICS = [
+    "why saving money in a traditional bank account is compound inflation suicide",
+    "how the top 1 percent use debt tax loopholes to build generational wealth",
+    "the psychological traps credit card companies use to drain your bank balance",
+    "how smart investors profit off economic recessions while everyone else loses",
+    "the difference between buying cash flowing assets and flexing liabilities",
+    "why high income earners still end up broke in their late 30s",
+    "the quiet wealth strategy of index funds versus stock picking hype",
+    "how lifestyle creep secretly destroys middle class net worth"
+]
+
+# [1/5] GEMINI SCRIPT & METADATA GENERATION
 def generate_script_from_gemini():
-    print("[1/5] Querying Gemini API for high-retention finance topics...")
+    print("[1/5] Querying Gemini API for dynamic, high-retention finance content...")
+    
+    chosen_topic = random.choice(FINANCE_TOPICS)
     
     SYSTEM_INSTRUCTION = """
 You are a brilliant, slightly cynical, and highly sarcastic Gen Z financial analyst. 
-Your goal is to write highly engaging, fast-paced scripts for YouTube. 
-You absolutely hate traditional, boring, robotic "faceless slop" channels, and you refuse to write like them. 
-
-Strict Writing Rules:
-1. TONALITY: Conversational, witty, charismatic, and slightly sarcastic. Use short sentence fragments, dramatic pauses, and rhetorical questions. 
-2. HOOK: Never start with "Welcome to Apex Wealth Lab". Start with a punchy, shocking, or deeply contrarian statement in the first 3 seconds.
-3. LANGUAGE: Use natural Gen Z/modern internet slang where it fits naturally ("rent-free", "side eye", "main character energy", "cooking", "mathematically cooked").
-4. PACING: High retention. Every sentence leads directly into the next. Use humor and dry wit.
-5. CALL TO ACTION (CTA): Keep it subtle, brief, and clever. No begging for likes.
-6. FORMAT: Return ONLY the raw spoken text. Do not include sound effect cues, scene descriptions, or slide directions.
+You write engaging YouTube scripts. You must return ONLY a raw JSON object with this exact structure:
+{
+  "longform_title": "Punchy long-form title (under 60 chars)",
+  "longform_description": "2-3 sentence engaging description with #finance #wealth hashtags",
+  "longform_script": "Full spoken script (250-350 words). Fast-paced, cynical, witty, Gen Z tone.",
+  "short_title": "Viral Shorts title ending in #shorts #finance",
+  "short_description": "Quick short description #shorts #wealth"
+}
 """
 
     model = genai.GenerativeModel(
@@ -34,23 +51,29 @@ Strict Writing Rules:
         system_instruction=SYSTEM_INSTRUCTION
     )
     
-    prompt = "Write a high-retention, engaging script about why traditional saving is a losing game and where smart money actually goes."
+    prompt = f"Write unique content about this topic: '{chosen_topic}'"
 
     try:
         response = model.generate_content(
             prompt,
-            generation_config={"response_mime_type": "text/plain"}
+            generation_config={"response_mime_type": "application/json"}
         )
-        script_text = response.text
+        data = json.loads(response.text)
+        
+        with open("video_metadata.json", "w", encoding="utf-8") as f:
+            json.dump(data, f)
+            
         with open("script.txt", "w", encoding="utf-8") as f:
-            f.write(script_text)
-        print(f"Success! Generated a script of {len(script_text.split())} words.")
-        return script_text
+            f.write(data["longform_script"])
+            
+        print(f"Success! Topic selected: '{chosen_topic}'")
+        print(f"Generated Long-form Title: '{data['longform_title']}'")
+        return data["longform_script"]
     except Exception as e:
         print(f"Error generating script from Gemini: {e}")
         sys.exit(1)
 
-# [2/5] HYBRID VOICEOVER GENERATION (ELEVENLABS WITH EDGE-TTS FALLBACK)
+# [2/5] HYBRID VOICEOVER GENERATION (ELEVENLABS + EDGE-TTS FALLBACK)
 def generate_voiceover(output_path="voiceover.mp3"):
     print("[2/5] Synthesizing voiceover...")
     
@@ -62,11 +85,11 @@ def generate_voiceover(output_path="voiceover.mp3"):
         text = f.read()
 
     api_key = os.environ.get("ELEVENLABS_API_KEY")
-    voice_id = os.environ.get("ELEVENLABS_VOICE_ID", "pNInz6obpg75e3OcAncf")
+    voice_id = os.environ.get("ELEVENLABS_VOICE_ID")
     if voice_id:
         voice_id = voice_id.strip()
 
-    # Attempt 1: Try ElevenLabs
+    # Attempt 1: ElevenLabs
     if api_key and voice_id:
         print("Attempting ElevenLabs synthesis...")
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
@@ -78,15 +101,10 @@ def generate_voiceover(output_path="voiceover.mp3"):
         data = {
             "text": text,
             "model_id": "eleven_flash_v2",
-            "voice_settings": {
-                "stability": 0.35,
-                "similarity_boost": 0.8,
-                "style": 0.1,
-                "use_speaker_boost": True
-            }
+            "voice_settings": {"stability": 0.35, "similarity_boost": 0.8}
         }
         try:
-            response = requests.post(url, json=data, headers=headers)
+            response = requests.post(url, json=data, headers=headers, timeout=30)
             if response.status_code == 200:
                 with open(output_path, "wb") as f:
                     f.write(response.content)
@@ -95,14 +113,13 @@ def generate_voiceover(output_path="voiceover.mp3"):
             else:
                 print(f"ElevenLabs hit limit/error ({response.status_code}). Switching to Edge-TTS Neural fallback...")
         except Exception as e:
-            print(f"ElevenLabs connection error: {e}. Switching to Edge-TTS Neural fallback...")
+            print(f"ElevenLabs error: {e}. Switching to Edge-TTS Neural fallback...")
 
-    # Attempt 2: Fallback to Edge-TTS (en-US-ChristopherNeural)
+    # Attempt 2: Fallback to Edge-TTS
     print("Using Edge-TTS Neural Voice (en-US-ChristopherNeural)...")
     async def run_edge_tts():
         import edge_tts
-        voice = "en-US-ChristopherNeural"
-        communicate = edge_tts.Communicate(text, voice)
+        communicate = edge_tts.Communicate(text, "en-US-ChristopherNeural")
         await communicate.save(output_path)
 
     try:
@@ -115,11 +132,11 @@ def generate_voiceover(output_path="voiceover.mp3"):
 
 # [3/5] PEXELS STOCK FOOTAGE DOWNLOADER
 def fetch_luxury_stock_footage(query="dark luxury wealth lifestyle mansion sports car", num_clips=6):
-    print("[3/5] Fetching 4K/HD stock footage from Pexels API...")
+    print("[3/5] Fetching stock footage from Pexels API...")
     
     pexels_api_key = os.environ.get("PEXELS_API_KEY")
     if not pexels_api_key:
-        print("Error: PEXELS_API_KEY environment variable is missing!")
+        print("Error: PEXELS_API_KEY is missing!")
         sys.exit(1)
 
     os.makedirs("raw_clips", exist_ok=True)
@@ -127,16 +144,14 @@ def fetch_luxury_stock_footage(query="dark luxury wealth lifestyle mansion sport
     url = f"https://api.pexels.com/videos/search?query={query}&per_page={num_clips}&orientation=landscape"
 
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=15)
         if response.status_code != 200:
-            print(f"Pexels API Error: {response.status_code} - {response.text}")
+            print(f"Pexels API Error: {response.status_code}")
             sys.exit(1)
 
-        data = response.json()
-        videos = data.get("videos", [])
-        
+        videos = response.json().get("videos", [])
         if not videos:
-            print("No videos found on Pexels for query!")
+            print("No videos found on Pexels!")
             sys.exit(1)
 
         downloaded_count = 0
@@ -148,22 +163,20 @@ def fetch_luxury_stock_footage(query="dark luxury wealth lifestyle mansion sport
             if target_file:
                 download_url = target_file.get("link")
                 file_path = f"raw_clips/clip_{i+1}.mp4"
-                
-                print(f"Downloading clip {i+1}/{len(videos)} from Pexels...")
-                clip_data = requests.get(download_url).content
+                print(f"Downloading clip {i+1}/{len(videos)}...")
+                clip_data = requests.get(download_url, timeout=30).content
                 with open(file_path, "wb") as f:
                     f.write(clip_data)
                 downloaded_count += 1
 
-        print(f"Success! Downloaded {downloaded_count} stock video clips into 'raw_clips/'.")
-
+        print(f"Success! Downloaded {downloaded_count} clips.")
     except Exception as e:
         print(f"Failed to download Pexels footage: {e}")
         sys.exit(1)
 
 # [4/5] MOVIEPY DYNAMIC RENDER ENGINE
 def render_luxury_videos(script_text):
-    print("[4/5] Initiating MoviePy Luxury Aesthetic Editor with Subtitles...")
+    print("[4/5] Initiating MoviePy Editor with Subtitles...")
     
     audio_path = "voiceover.mp3"
     if not os.path.exists(audio_path):
@@ -172,32 +185,22 @@ def render_luxury_videos(script_text):
 
     voiceover = AudioFileClip(audio_path)
     total_duration = voiceover.duration
-    
-    if not os.path.exists("raw_clips"):
-        print("Error: 'raw_clips' directory missing!")
-        sys.exit(1)
 
     clip_files = [f"raw_clips/{f}" for f in os.listdir("raw_clips") if f.endswith(".mp4")]
     if not clip_files:
-        print("Error: No downloaded clips found inside 'raw_clips/'.")
+        print("Error: No clips found in 'raw_clips/'.")
         sys.exit(1)
         
-    print(f"Pre-loading {len(clip_files)} source clips into memory...")
     loaded_videos = []
     for file in clip_files:
         try:
             loaded_videos.append(VideoFileClip(file))
         except Exception as e:
-            print(f"Skipping unreadable clip {file}: {e}")
-
-    if not loaded_videos:
-        print("Error: Total failure loading source video clips.")
-        sys.exit(1)
+            print(f"Skipping clip {file}: {e}")
 
     processed_subclips = []
     current_time = 0
     
-    print("Chopping clips into aggressive 2-second viral cuts with custom color grades...")
     while current_time < total_duration:
         random.shuffle(loaded_videos)
         for video in loaded_videos:
@@ -210,14 +213,11 @@ def render_luxury_videos(script_text):
                 processed_subclips.append(subclip)
                 current_time += 2.0
             except Exception as e:
-                print(f"Warning: Failed to slice clip segment: {e}")
                 continue
 
-    print("Stitching compilation track and linking audio...")
     background_video = concatenate_videoclips(processed_subclips, method="compose").subclip(0, total_duration)
 
     # Subtitle Engine
-    print("Generating dynamic text overlays...")
     words = script_text.split()
     total_words = len(words)
     wpm = (total_words / total_duration) * 60
@@ -232,19 +232,22 @@ def render_luxury_videos(script_text):
         subtitle_text = " ".join(chunk).upper()
         chunk_duration = len(chunk) * sec_per_word
         
-        txt_clip = (TextClip(subtitle_text, 
-                             fontsize=55, 
-                             font='Arial-Bold', 
-                             color='white', 
-                             stroke_color='black', 
-                             stroke_width=2,
-                             method='caption',
-                             size=(1920 - 200, None))
-                    .set_start(sub_time)
-                    .set_duration(chunk_duration)
-                    .set_position(('center', 'center')))
-        
-        clips_to_composite.append(txt_clip)
+        try:
+            txt_clip = (TextClip(subtitle_text, 
+                                 fontsize=55, 
+                                 font='DejaVu-Sans-Bold',
+                                 color='white', 
+                                 stroke_color='black', 
+                                 stroke_width=2,
+                                 method='caption',
+                                 size=(1920 - 200, None))
+                        .set_start(sub_time)
+                        .set_duration(chunk_duration)
+                        .set_position(('center', 'center')))
+            clips_to_composite.append(txt_clip)
+        except Exception as e:
+            print(f"TextClip warning: {e}")
+            
         sub_time += chunk_duration
 
     final_comp = CompositeVideoClip(clips_to_composite).set_audio(voiceover).set_duration(total_duration)
@@ -258,15 +261,14 @@ def render_luxury_videos(script_text):
         short_clip = final_comp.subclip(0, end_time).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
         short_clip.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
 
-    print("Cleaning up video handles...")
     for v in loaded_videos:
         v.close()
     voiceover.close()
-    print("Success! Subtitled video assets compiled completely.")
+    print("Success! Video assets compiled completely.")
 
 # [5/5] YOUTUBE UPLOADER ENGINE
 def upload_to_youtube():
-    print("[5/5] Authorizing via OAuth 2.0 and uploading to YouTube...")
+    print("[5/5] Authorizing and uploading to YouTube...")
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
     from google.oauth2.credentials import Credentials
@@ -279,6 +281,20 @@ def upload_to_youtube():
         print("YouTube API secrets missing. Skipping upload step.")
         return
 
+    # Load dynamic titles/descriptions generated by Gemini
+    if os.path.exists("video_metadata.json"):
+        with open("video_metadata.json", "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        long_title = meta.get("longform_title", "Unlocking Generational Wealth")
+        long_desc = meta.get("longform_description", "Welcome to Apex Wealth Lab. #finance #wealth")
+        short_title = meta.get("short_title", "How the 1% grow wealth #shorts #finance")
+        short_desc = meta.get("short_description", "Hidden money secrets #shorts")
+    else:
+        long_title = "The Hidden Systems Behind Global Markets"
+        long_desc = "Masterclass on finance and wealth creation."
+        short_title = "Wealth mindset #shorts"
+        short_desc = "Finance tips #shorts"
+
     creds = Credentials(
         token=None,
         refresh_token=refresh_token,
@@ -290,20 +306,12 @@ def upload_to_youtube():
     try:
         youtube = build("youtube", "v3", credentials=creds)
         
-        longform_description = (
-            "Discover advanced wealth creation frameworks, financial intelligence, and macroeconomic shifts.\n\n"
-            "Welcome to Apex Wealth Lab. We decode the hidden systems behind global markets.\n\n"
-            "#finance #wealth #macroeconomics #financialfreedom"
-        )
-        
-        shorts_description = "The hidden reality of asset allocation. #finance #wealth #shorts"
-        
         if os.path.exists("final_longform.mp4"):
-            print("Uploading long-form video...")
+            print(f"Uploading long-form video: '{long_title}'...")
             longform_body = {
                 "snippet": {
-                    "title": "The Hidden Financial System Exploited by the 1% (Masterclass)",
-                    "description": longform_description,
+                    "title": long_title,
+                    "description": long_desc,
                     "categoryId": "27"
                 },
                 "status": {
@@ -314,14 +322,14 @@ def upload_to_youtube():
             media_long = MediaFileUpload("final_longform.mp4", chunksize=-1, resumable=True)
             request_long = youtube.videos().insert(part="snippet,status", body=longform_body, media_body=media_long)
             response_long = request_long.execute()
-            print(f"Success! Long-form uploaded. Video ID: {response_long.get('id')}")
+            print(f"Success! Long-form uploaded. ID: {response_long.get('id')}")
             
         if os.path.exists("final_short.mp4"):
-            print("Uploading viral vertical Short...")
+            print(f"Uploading Short video: '{short_title}'...")
             short_body = {
                 "snippet": {
-                    "title": "The fastest way to build wealth 💸 #shorts #finance",
-                    "description": shorts_description,
+                    "title": short_title,
+                    "description": short_desc,
                     "categoryId": "27"
                 },
                 "status": {
@@ -332,10 +340,10 @@ def upload_to_youtube():
             media_short = MediaFileUpload("final_short.mp4", chunksize=-1, resumable=True)
             request_short = youtube.videos().insert(part="snippet,status", body=short_body, media_body=media_short)
             response_short = request_short.execute()
-            print(f"Success! Shorts uploaded. Video ID: {response_short.get('id')}")
+            print(f"Success! Short uploaded. ID: {response_short.get('id')}")
             
     except Exception as e:
-        print(f"An error occurred during YouTube upload execution: {e}")
+        print(f"An error occurred during YouTube upload: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
