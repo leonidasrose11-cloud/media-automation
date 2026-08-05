@@ -53,7 +53,8 @@ You write engaging YouTube scripts. You must return ONLY a raw JSON object with 
   "longform_description": "2-3 sentence engaging description with #finance #wealth hashtags",
   "longform_script": "Full spoken script (250-350 words). Fast-paced, cynical, witty, Gen Z tone.",
   "short_title": "Viral Shorts title ending in #shorts #finance",
-  "short_description": "Quick short description #shorts #wealth"
+  "short_description": "Quick short description #shorts #wealth",
+  "thumbnail_concept": "High CTR thumbnail text + visual concept description"
 }
 """
 
@@ -78,7 +79,6 @@ You write engaging YouTube scripts. You must return ONLY a raw JSON object with 
             f.write(data["longform_script"])
             
         print(f"Success! Topic selected: '{chosen_topic}'")
-        print(f"Generated Long-form Title: '{data['longform_title']}'")
         return data["longform_script"]
     except Exception as e:
         print(f"Error generating script from Gemini: {e}")
@@ -141,7 +141,7 @@ def generate_voiceover(output_path="voiceover.mp3"):
         print(f"Error generating voiceover with Edge-TTS: {e}")
         sys.exit(1)
 
-# [3/5] PEXELS STOCK FOOTAGE DOWNLOADER (DYNAMIC QUERY + RANDOM PAGE OFFSET)
+# [3/5] PEXELS STOCK FOOTAGE DOWNLOADER
 def fetch_luxury_stock_footage(num_clips=6):
     query = random.choice(PEXELS_QUERIES)
     random_page = random.randint(1, 10)
@@ -188,9 +188,9 @@ def fetch_luxury_stock_footage(num_clips=6):
         print(f"Failed to download Pexels footage: {e}")
         sys.exit(1)
 
-# [4/5] MOVIEPY DYNAMIC RENDER ENGINE (ACCURATE AUDIO-SYNCED SUBTITLES)
+# [4/5] MOVIEPY DYNAMIC RENDER ENGINE (RECALIBRATED SHORTS ASPECT RATIO SUBTITLES)
 def render_luxury_videos(script_text):
-    print("[4/5] Initiating MoviePy Editor with Audio-Synced Subtitles...")
+    print("[4/5] Initiating MoviePy Editor with Aspect-Ratio Native Subtitles...")
     
     audio_path = "voiceover.mp3"
     if not os.path.exists(audio_path):
@@ -231,15 +231,16 @@ def render_luxury_videos(script_text):
 
     background_video = concatenate_videoclips(processed_subclips, method="compose").subclip(0, total_duration)
 
-    # Subtitle Engine with Exact Audio Duration Sync
+    # Subtitle Engine Setup
     words = script_text.split()
     total_words = len(words)
     time_per_word = total_duration / max(1, total_words)
     
     chunk_size = 3
-    clips_to_composite = [background_video]
+    longform_subtitle_clips = [background_video]
     sub_time = 0.0
     
+    # 16:9 Longform Subtitles (Width bound: 1720px)
     for i in range(0, total_words, chunk_size):
         chunk = words[i:i+chunk_size]
         subtitle_text = " ".join(chunk).upper()
@@ -253,26 +254,58 @@ def render_luxury_videos(script_text):
                                  stroke_color='black', 
                                  stroke_width=2,
                                  method='caption',
-                                 size=(1920 - 200, None))
+                                 size=(1720, None))
                         .set_start(sub_time)
                         .set_duration(chunk_duration)
                         .set_position(('center', 'center')))
-            clips_to_composite.append(txt_clip)
+            longform_subtitle_clips.append(txt_clip)
         except Exception as e:
             print(f"TextClip warning: {e}")
             
         sub_time += chunk_duration
 
-    final_comp = CompositeVideoClip(clips_to_composite).set_audio(voiceover).set_duration(total_duration)
+    final_comp = CompositeVideoClip(longform_subtitle_clips).set_audio(voiceover).set_duration(total_duration)
 
     print("Encoding final long-form video...")
     final_comp.write_videofile("final_longform.mp4", fps=30, codec="libx264", preset="ultrafast")
     
     if total_duration > 35:
-        print("Generating center-cropped vertical Short...")
+        print("Generating center-cropped vertical Short with native vertical subtitles...")
         end_time = min(total_duration, 35)
-        short_clip = final_comp.subclip(0, end_time).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
-        short_clip.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
+        raw_short_bg = background_video.subclip(0, end_time).crop(x_center=960, y_center=540, width=607, height=1080).resize(newsize=(720, 1280))
+        short_voiceover = voiceover.subclip(0, end_time)
+
+        # 9:16 Short Native Subtitles (Width bound: 600px, smaller font)
+        short_subtitle_clips = [raw_short_bg]
+        sub_time = 0.0
+        
+        for i in range(0, total_words, chunk_size):
+            if sub_time >= end_time:
+                break
+            chunk = words[i:i+chunk_size]
+            subtitle_text = " ".join(chunk).upper()
+            chunk_duration = len(chunk) * time_per_word
+            
+            try:
+                txt_clip = (TextClip(subtitle_text, 
+                                     fontsize=42, 
+                                     font='DejaVu-Sans-Bold',
+                                     color='yellow', 
+                                     stroke_color='black', 
+                                     stroke_width=3,
+                                     method='caption',
+                                     size=(600, None))
+                            .set_start(sub_time)
+                            .set_duration(min(chunk_duration, end_time - sub_time))
+                            .set_position(('center', 'center')))
+                short_subtitle_clips.append(txt_clip)
+            except Exception as e:
+                print(f"Short TextClip warning: {e}")
+                
+            sub_time += chunk_duration
+
+        final_short_comp = CompositeVideoClip(short_subtitle_clips).set_audio(short_voiceover).set_duration(end_time)
+        final_short_comp.write_videofile("final_short.mp4", fps=30, codec="libx264", preset="ultrafast")
 
     for v in loaded_videos:
         v.close()
@@ -358,6 +391,20 @@ def upload_to_youtube():
         print(f"An error occurred during YouTube upload: {e}")
         sys.exit(1)
 
+def print_script_preview():
+    if os.path.exists("video_metadata.json"):
+        with open("video_metadata.json", "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        
+        print("\n==================================================")
+        print("           🎥 APEX WEALTH LAB RUN SUMMARY         ")
+        print("==================================================")
+        print(f"\n📌 LONG-FORM TITLE:\n{meta.get('longform_title')}")
+        print(f"\n📌 SHORT TITLE:\n{meta.get('short_title')}")
+        print(f"\n🎨 THUMBNAIL CONCEPT:\n{meta.get('thumbnail_concept', 'N/A')}")
+        print(f"\n📝 FULL SCRIPT PREVIEW:\n{meta.get('longform_script')}")
+        print("==================================================\n")
+
 if __name__ == "__main__":
     print("--- APEX WEALTH LAB AUTOMATION ENGINE RUN START ---")
     script = generate_script_from_gemini()
@@ -365,4 +412,5 @@ if __name__ == "__main__":
     fetch_luxury_stock_footage(num_clips=6)
     render_luxury_videos(script)
     upload_to_youtube()
+    print_script_preview()
     print("--- PIPELINE EXECUTION SUCCESSFUL ---")
